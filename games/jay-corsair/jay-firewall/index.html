@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>Jay Firewall Defender</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#070014;font-family:Arial,Helvetica,sans-serif;touch-action:none;user-select:none}
+canvas{display:block;width:100vw;height:100vh;background:#070014}
+#menu{position:fixed;inset:0;z-index:10;display:flex;align-items:center;justify-content:center;background:rgba(5,0,18,.78)}
+.card{width:min(92vw,520px);padding:26px;border-radius:26px;text-align:center;color:white;background:linear-gradient(180deg,rgba(43,0,88,.96),rgba(10,0,30,.97));border:2px solid rgba(189,76,255,.72);box-shadow:0 0 40px rgba(174,62,255,.45),inset 0 0 28px rgba(255,255,255,.05)}
+h1{font-size:clamp(34px,8vw,54px);line-height:1.05;margin-bottom:12px;color:#fff;text-shadow:0 0 24px #b843ff}
+p{color:#dec9ff;line-height:1.55;margin:12px 0 22px}
+button{border:0;border-radius:999px;padding:14px 30px;font-size:16px;font-weight:900;color:#20003a;background:linear-gradient(90deg,#ffd83d,#bd55ff,#44e7ff);cursor:pointer;box-shadow:0 0 25px rgba(189,76,255,.5)}
+#hint{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);color:#ead8ff;font-size:13px;padding:10px 16px;border-radius:999px;border:1px solid rgba(189,76,255,.65);background:rgba(31,0,74,.55);pointer-events:none;z-index:4}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="menu"><div class="card"><h1>🛡️ JAY FIREWALL</h1><p>Protect the Jay Node from viruses, malware, and hacker bots. Tap enemies before they reach the center firewall.</p><button id="startBtn">START DEFENSE</button></div></div>
+<div id="hint">TAP ENEMIES TO DESTROY THEM</div>
+<script>
+(()=> {
+const canvas=document.getElementById("game"),ctx=canvas.getContext("2d"),menu=document.getElementById("menu"),startBtn=document.getElementById("startBtn");
+let DPR,W,H,CX,CY,running=false,frame=0,score=0,level=1,hp=5,best=Number(localStorage.getItem("jay_firewall_best")||0);
+let enemies=[],particles=[],stars=[],shockwaves=[],powerups=[],shield=0,slow=0;
+function resize(){DPR=Math.min(devicePixelRatio||1,2);W=canvas.width=Math.floor(innerWidth*DPR);H=canvas.height=Math.floor(innerHeight*DPR);canvas.style.width=innerWidth+"px";canvas.style.height=innerHeight+"px";ctx.setTransform(DPR,0,0,DPR,0,0);CX=innerWidth/2;CY=innerHeight/2+18;makeStars()}
+function rand(a,b){return Math.random()*(b-a)+a}
+function dist(x1,y1,x2,y2){const dx=x1-x2,dy=y1-y2;return Math.sqrt(dx*dx+dy*dy)}
+function makeStars(){stars=[];for(let i=0;i<140;i++)stars.push({x:rand(0,innerWidth),y:rand(0,innerHeight),r:rand(.4,2.2),a:rand(.25,1),s:rand(.05,.45)})}
+function reset(){running=true;frame=0;score=0;level=1;hp=5;shield=0;slow=0;enemies=[];particles=[];powerups=[];shockwaves=[];menu.style.display="none"}
+function enemyStats(type){if(type==="virus")return{hp:1,score:1,color:"#ff3d77",r:18,speed:1.15};if(type==="malware")return{hp:2,score:3,color:"#bf55ff",r:22,speed:.92};return{hp:3,score:5,color:"#44e7ff",r:25,speed:.75}}
+function spawnEnemy(){const edge=Math.floor(rand(0,4));let x,y;if(edge===0){x=rand(0,innerWidth);y=-40}else if(edge===1){x=innerWidth+40;y=rand(0,innerHeight)}else if(edge===2){x=rand(0,innerWidth);y=innerHeight+40}else{x=-40;y=rand(0,innerHeight)}
+const roll=Math.random(),type=roll<.62?"virus":roll<.88?"malware":"bot",st=enemyStats(type);enemies.push({x,y,type,hp:st.hp,maxHp:st.hp,r:st.r,speed:st.speed+level*.08,color:st.color,score:st.score,rot:rand(0,Math.PI*2)})}
+function spawnPowerup(){const kinds=["blast","shield","slow"],kind=kinds[Math.floor(rand(0,kinds.length))];powerups.push({x:rand(60,innerWidth-60),y:rand(110,innerHeight-80),r:22,kind,life:560,pulse:rand(0,Math.PI*2)})}
+function addParticles(x,y,color,count,power=4){for(let i=0;i<count;i++)particles.push({x,y,vx:rand(-power,power),vy:rand(-power,power),r:rand(2,5),life:rand(18,42),color})}
+function addShockwave(x,y,color,maxR=220){shockwaves.push({x,y,r:12,maxR,color,life:35})}
+function updateBest(){if(score>best){best=score;localStorage.setItem("jay_firewall_best",String(best))}}
+function tap(x,y){if(!running)return;for(let i=powerups.length-1;i>=0;i--){const p=powerups[i];if(dist(x,y,p.x,p.y)<=p.r+18){if(p.kind==="blast"){enemies.forEach(e=>addParticles(e.x,e.y,e.color,14,5));score+=enemies.length;enemies=[];addShockwave(CX,CY,"#ffd83d",Math.max(innerWidth,innerHeight))}else if(p.kind==="shield"){shield=420;addShockwave(CX,CY,"#44e7ff",260)}else{slow=420;addShockwave(CX,CY,"#bf55ff",260)}powerups.splice(i,1);updateBest();return}}
+for(let i=enemies.length-1;i>=0;i--){const e=enemies[i];if(dist(x,y,e.x,e.y)<=e.r+18){e.hp--;addParticles(e.x,e.y,e.color,8,3);if(e.hp<=0){score+=e.score;updateBest();addParticles(e.x,e.y,e.color,20,5);enemies.splice(i,1)}return}}}
+addEventListener("pointerdown",e=>{if(e.target===startBtn)return;tap(e.clientX,e.clientY)});
+startBtn.onclick=reset;
+function drawBackground(){const g=ctx.createRadialGradient(CX,CY,30,CX,CY,Math.max(innerWidth,innerHeight)*.78);g.addColorStop(0,"#2a0064");g.addColorStop(.45,"#120039");g.addColorStop(1,"#05000f");ctx.fillStyle=g;ctx.fillRect(0,0,innerWidth,innerHeight);stars.forEach(s=>{s.y+=s.s;if(s.y>innerHeight)s.y=0;ctx.globalAlpha=s.a+Math.sin(frame*.04+s.x)*.25;ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1});ctx.strokeStyle="rgba(180,65,255,.13)";ctx.lineWidth=2;for(let i=0;i<7;i++){const y=(i*145+frame*.35)%(innerHeight+200)-100;ctx.beginPath();ctx.moveTo(-80,y);ctx.lineTo(innerWidth+80,y+210);ctx.stroke()}}
+function drawNode(){ctx.save();ctx.translate(CX,CY);const shieldAlpha=shield>0?.55+Math.sin(frame*.12)*.18:.18;ctx.strokeStyle=`rgba(68,231,255,${shieldAlpha})`;ctx.lineWidth=shield>0?8:3;ctx.beginPath();ctx.arc(0,0,95+Math.sin(frame*.05)*4,0,Math.PI*2);ctx.stroke();ctx.strokeStyle="rgba(196,80,255,.35)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,145,0,Math.PI*2);ctx.stroke();for(let i=0;i<8;i++){ctx.rotate(Math.PI/4);const lg=ctx.createLinearGradient(0,0,0,-120);lg.addColorStop(0,"rgba(196,80,255,.8)");lg.addColorStop(1,"rgba(196,80,255,0)");ctx.fillStyle=lg;ctx.beginPath();ctx.moveTo(-3,0);ctx.lineTo(3,0);ctx.lineTo(0,-120);ctx.closePath();ctx.fill()}ctx.shadowColor="#bd55ff";ctx.shadowBlur=25;ctx.fillStyle="#16002f";ctx.strokeStyle="#c45cff";ctx.lineWidth=5;ctx.beginPath();ctx.arc(0,0,58,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle="#2e075f";ctx.beginPath();ctx.arc(0,0,39,0,Math.PI*2);ctx.fill();ctx.fillStyle="#fff";ctx.font="900 42px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.shadowColor="#d75cff";ctx.shadowBlur=18;ctx.fillText("J",0,3);ctx.restore()}
+function drawEnemy(e){ctx.save();ctx.translate(e.x,e.y);ctx.rotate(e.rot);e.rot+=.018;ctx.shadowColor=e.color;ctx.shadowBlur=18;ctx.fillStyle=e.color;ctx.beginPath();if(e.type==="virus"){for(let i=0;i<12;i++){const a=i*Math.PI*2/12;ctx.lineTo(Math.cos(a)*(e.r+(i%2?4:-3)),Math.sin(a)*(e.r+(i%2?4:-3)))}ctx.closePath();ctx.fill()}else if(e.type==="malware"){ctx.rect(-e.r,-e.r,e.r*2,e.r*2);ctx.fill()}else{ctx.arc(0,0,e.r,0,Math.PI*2);ctx.fill();ctx.fillStyle="#05000f";ctx.fillRect(-12,-4,24,8);ctx.fillStyle="#fff";ctx.fillRect(-8,-2,5,4);ctx.fillRect(4,-2,5,4)}ctx.shadowBlur=0;ctx.strokeStyle="rgba(255,255,255,.75)";ctx.lineWidth=2;ctx.stroke();if(e.maxHp>1){ctx.rotate(-e.rot);ctx.fillStyle="rgba(255,255,255,.25)";ctx.fillRect(-18,e.r+9,36,5);ctx.fillStyle="#ffd83d";ctx.fillRect(-18,e.r+9,36*(e.hp/e.maxHp),5)}ctx.restore()}
+function drawPowerup(p){const icon=p.kind==="blast"?"⚡":p.kind==="shield"?"🛡":"⏳",color=p.kind==="blast"?"#ffd83d":p.kind==="shield"?"#44e7ff":"#bf55ff";ctx.save();ctx.translate(p.x,p.y);ctx.shadowColor=color;ctx.shadowBlur=22;ctx.fillStyle="rgba(20,0,45,.88)";ctx.strokeStyle=color;ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,p.r+Math.sin(frame*.08+p.pulse)*2,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.shadowBlur=0;ctx.font="22px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText(icon,0,1);ctx.restore()}
+function drawParticles(){particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/40);ctx.shadowColor=p.color;ctx.shadowBlur=10;ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;ctx.shadowBlur=0});shockwaves.forEach(s=>{ctx.globalAlpha=Math.max(0,s.life/35);ctx.strokeStyle=s.color;ctx.lineWidth=5;ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=1})}
+function drawHud(){ctx.save();ctx.fillStyle="#fff";ctx.shadowColor="#b843ff";ctx.shadowBlur=12;ctx.font="900 25px Arial";ctx.textAlign="left";ctx.fillText("LEVEL "+level,22,42);ctx.fillStyle="#ffd83d";ctx.fillText("SCORE "+score,22,74);ctx.textAlign="right";ctx.fillStyle="#fff";ctx.fillText("BEST "+best,innerWidth-22,42);ctx.fillStyle="#ff6aa2";ctx.fillText("❤ "+hp,innerWidth-22,74);if(shield>0||slow>0){ctx.textAlign="center";ctx.fillStyle=shield>0?"#44e7ff":"#bf55ff";ctx.font="900 16px Arial";ctx.fillText(shield>0?"SHIELD ACTIVE":"SLOW TIME",CX,38)}ctx.restore()}
+function update(){frame++;level=1+Math.floor(score/22);if(shield>0)shield--;if(slow>0)slow--;const spawnRate=Math.max(20,62-level*4);if(frame%spawnRate===0)spawnEnemy();if(frame%520===0)spawnPowerup();const slowFactor=slow>0?.45:1;enemies.forEach(e=>{const a=Math.atan2(CY-e.y,CX-e.x);e.x+=Math.cos(a)*e.speed*slowFactor;e.y+=Math.sin(a)*e.speed*slowFactor});enemies=enemies.filter(e=>{if(dist(e.x,e.y,CX,CY)<72){if(shield<=0){hp--;addShockwave(CX,CY,"#ff3d77",170);addParticles(CX,CY,"#ff3d77",28,5);if(hp<=0)endGame()}else addParticles(e.x,e.y,"#44e7ff",18,5);return false}return true});powerups.forEach(p=>p.life--);powerups=powerups.filter(p=>p.life>0);particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vx*=.965;p.vy*=.965;p.life--});particles=particles.filter(p=>p.life>0);shockwaves.forEach(s=>{s.r+=(s.maxR-s.r)*.11;s.life--});shockwaves=shockwaves.filter(s=>s.life>0)}
+function endGame(){running=false;updateBest();menu.style.display="flex";menu.innerHTML=`<div class="card"><h1>FIREWALL DOWN</h1><p>Score: <b>${score}</b><br>Level: <b>${level}</b><br>Best: <b>${best}</b></p><button onclick="location.reload()">PLAY AGAIN</button></div>`}
+function loop(){drawBackground();drawNode();enemies.forEach(drawEnemy);powerups.forEach(drawPowerup);drawParticles();drawHud();if(running)update();requestAnimationFrame(loop)}
+addEventListener("resize",resize);resize();loop();
+})();
+</script>
+</body>
+</html>

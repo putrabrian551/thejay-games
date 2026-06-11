@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Neon Puzzle</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+* { box-sizing: border-box; user-select: none; }
+body {
+    margin: 0;
+    min-height: 100vh;
+    overflow: hidden;
+    font-family: 'Orbitron', sans-serif;
+    background: url('https://images.stockcake.com/public/f/8/5/f8515747-ae68-4630-ab2e-fc28dfa3b074/neon-cyberpunk-city-stockcake.jpg') center/cover no-repeat fixed;
+    color: white;
+}
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 8, 25, 0.75); /* Sedikit digelapkan agar UI lebih menonjol */
+    z-index: 0;
+}
+#bg { position: fixed; inset: 0; opacity: 0.2; z-index: 0; }
+
+/* LAYOUTING UTAMA */
+.app-container {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+}
+
+.screen {
+    display: none;
+    width: 100%;
+    max-width: 500px;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeIn 0.4s ease-out;
+}
+.screen.active { display: flex; }
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* KOTAK KACA (GLASSMORPHISM) */
+.glass-panel {
+    background: rgba(10, 15, 35, 0.65);
+    backdrop-filter: blur(15px);
+    border: 1px solid rgba(180, 120, 255, 0.5);
+    border-radius: 24px;
+    box-shadow: 0 0 30px rgba(138, 43, 226, 0.35);
+    padding: 24px;
+    width: 100%;
+    text-align: center;
+}
+
+/* TIPOGRAFI & LOGO */
+.logo-icon {
+    font-size: 3.5rem;
+    color: #00e5ff;
+    text-shadow: 0 0 15px #00e5ff, 0 0 30px #b388ff;
+    margin-bottom: 10px;
+}
+
+h1 {
+    margin: 0;
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, #00e5ff, #6fc3ff, #b388ff, #ff4fd8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+}
+
+.cyber-subtitle {
+    color: #caa7ff;
+    letter-spacing: 5px;
+    margin-top: 5px;
+    font-size: 1rem;
+    text-shadow: 0 0 8px #caa7ff;
+}
+
+/* MENU UTAMA */
+.menu-options {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 30px;
+    width: 100%;
+}
+
+.modeCard {
+    padding: 15px;
+    border-radius: 16px;
+    font-size: 18px;
+    font-weight: 700;
+    background: rgba(168, 76, 255, 0.1);
+    border: 1px solid rgba(126, 240, 255, 0.35);
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.modeCard i { font-size: 24px; margin-bottom: 5px; }
+.modeCard:hover, .modeCard:active {
+    transform: scale(1.02);
+    background: rgba(168, 76, 255, 0.3);
+    box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+}
+
+.easy { color: #b6ff00; text-shadow: 0 0 8px #b6ff00; }
+.normal { color: #00e5ff; text-shadow: 0 0 8px #00e5ff; }
+.hard { color: #ffb300; text-shadow: 0 0 8px #ffb300; }
+.modeCard small { opacity: 0.8; font-size: 12px; margin-top: 4px; font-weight: 400; color: white; text-shadow: none; }
+
+/* HUD (Heads Up Display) PERMAINAN */
+#hud {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    width: 100%;
+    margin-bottom: 20px;
+}
+.stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(126, 240, 255, 0.3);
+}
+.stat span { font-size: 18px; font-weight: 900; color: #00e5ff; margin-top: 4px; text-shadow: 0 0 8px #00e5ff;}
+
+/* PAPAN PUZZLE (OPTIMASI MOBILE & GRID DINAMIS) */
+#board {
+    display: grid;
+    gap: 6px; /* Jarak antar kotak */
+    width: 100%;
+    max-width: 450px;
+    aspect-ratio: 1; /* Membuat board selalu kotak sempurna */
+    padding: 10px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(126, 240, 255, 0.25);
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+    margin: 0 auto;
+}
+
+.tile {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(20px, 5vw, 32px);
+    font-weight: 900;
+    color: #00e5ff;
+    text-shadow: 0 0 10px #00e5ff;
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(4px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.2s;
+}
+.tile:active { transform: scale(0.95); }
+.empty { background: transparent; border: 1px dashed rgba(255,255,255,0.2); box-shadow: none; cursor: default; }
+
+/* TOMBOL KEMBALI */
+.btn-back {
+    margin-top: 20px;
+    background: transparent;
+    border: 1px solid #ff4fd8;
+    color: #ff4fd8;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s;
+}
+.btn-back:hover { background: rgba(255, 79, 216, 0.2); box-shadow: 0 0 15px rgba(255, 79, 216, 0.5); }
+
+/* POPUP */
+.popup {
+    position: fixed; inset: 0; display: none;
+    justify-content: center; align-items: center;
+    background: rgba(0, 0, 0, 0.85); z-index: 999;
+    backdrop-filter: blur(5px);
+}
+.card {
+    text-align: center;
+    background: #0a0f23;
+    border: 2px solid #a84cff;
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 400px;
+    box-shadow: 0 0 40px rgba(168, 76, 255, 0.5);
+}
+.card h2 { color: #00e5ff; margin-top: 0; }
+.card button {
+    padding: 12px 24px; margin: 5px;
+    border: none; border-radius: 12px;
+    background: linear-gradient(90deg, #00d4ff, #7b2cff);
+    color: #fff; font-family: inherit; font-weight: bold;
+    cursor: pointer; box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+    transition: 0.2s;
+}
+.card button:hover { transform: scale(1.05); }
+
+/* RESPONSIVE KECIL */
+@media(max-width: 400px) {
+    .glass-panel { padding: 15px; }
+    #hud { gap: 6px; }
+    .stat { padding: 8px; font-size: 12px; }
+    .stat span { font-size: 16px; }
+    #board { padding: 6px; gap: 4px; border-radius: 12px; }
+    .tile { border-radius: 8px; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="app-container">
+    
+    <div id="mainMenuScreen" class="screen active glass-panel">
+        <div class="logo-icon"><i class="fa-solid fa-microchip"></i></div>
+        <h1>NEON PUZZLE</h1>
+        <div class="cyber-subtitle">JAY NETWORK</div>
+        
+        <div class="menu-options">
+            <div class="modeCard easy" onclick="startGame(1)">
+                <i class="fa-solid fa-square-check"></i> EASY
+                <small>3x3 Grid • +60 Seconds</small>
+            </div>
+            <div class="modeCard normal" onclick="startGame(2)">
+                <i class="fa-solid fa-layer-group"></i> NORMAL
+                <small>4x4 Grid • +90 Seconds</small>
+            </div>
+            <div class="modeCard hard" onclick="startGame(3)">
+                <i class="fa-solid fa-fire-flame-curved"></i> HARD
+                <small>5x5 Grid • +150 Seconds</small>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameScreen" class="screen">
+        <div id="hud">
+            <div class="stat">MODE <span id="difficulty">Easy</span></div>
+            <div class="stat">TIME <span id="time">60</span></div>
+            <div class="stat">SCORE <span id="score">0</span></div>
+            <div class="stat">HIGH SCORE <span id="high">0</span></div>
+        </div>
+
+        <div id="board"></div>
+
+        <button class="btn-back" onclick="quitToMenu()"><i class="fa-solid fa-arrow-left"></i> BACK TO MENU</button>
+    </div>
+
+</div>
+
+<div class="popup" id="popup">
+    <div class="card">
+        <h2 id="popTitle">Level Complete</h2>
+        <p id="popText"></p>
+        <button id="continueBtn" style="display:none; margin-top:15px;">CONTINUE</button>
+        <button id="playAgainBtn" style="display:none; margin-top:15px;"><i class="fa-solid fa-rotate-right"></i> RETRY</button>
+        <button onclick="quitToMenu()" style="margin-top:15px; background:transparent; border:1px solid white;"><i class="fa-solid fa-house"></i> HOME</button>
+    </div>
+</div>
+
+<script>
+/* EFEK CANVAS BACKGROUND */
+const cvs = document.getElementById('bg');
+const ctx = cvs.getContext('2d');
+function rs() { cvs.width = innerWidth; cvs.height = innerHeight; }
+rs(); window.addEventListener('resize', rs);
+
+const stars = [...Array(100)].map(() => ({
+    x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+    s: 1 + Math.random() * 2, v: 0.2 + Math.random()
+}));
+
+(function anim() {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    stars.forEach(p => {
+        p.y -= p.v;
+        if (p.y < 0) { p.y = cvs.height; p.x = Math.random() * cvs.width; }
+        ctx.fillStyle = "rgba(0, 255, 255, 0.7)";
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.s, 0, Math.PI * 2); ctx.fill();
+    });
+    requestAnimationFrame(anim);
+})();
+
+/* LOGIK GAME */
+const board = document.getElementById('board');
+const difficulty = document.getElementById('difficulty');
+const scoreEl = document.getElementById('score');
+const highEl = document.getElementById('high');
+const timeEl = document.getElementById('time');
+const popup = document.getElementById('popup');
+const popTitle = document.getElementById('popTitle');
+const popText = document.getElementById('popText');
+const playAgainBtn = document.getElementById('playAgainBtn'); 
+const continueBtn = document.getElementById('continueBtn');
+
+const mainMenu = document.getElementById('mainMenuScreen');
+const gameScreen = document.getElementById('gameScreen');
+
+let level = 1, size = 3, reward = 100, timeLeft = 60, score = 0, timer, tiles = []; 
+let startMode = 1;
+let audioCtx = null;
+
+function beep(f, d, type = 'sine') {
+    try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = type; o.frequency.value = f;
+        o.connect(g); g.connect(audioCtx.destination);
+        g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d / 1000);
+        o.start(); o.stop(audioCtx.currentTime + d / 1000);
+    } catch (e) {}
+}
+
+function setupGame() {
+    // Pengaturan Level
+    if (level === 1) { size = 3; reward = 100; timeLeft = 60; difficulty.textContent = 'EASY'; difficulty.style.color="#b6ff00"; }
+    else if (level === 2) { size = 4; reward = 300; timeLeft = 90; difficulty.textContent = 'NORMAL'; difficulty.style.color="#00e5ff";}
+    else { size = 5; reward = 500; timeLeft = 150; difficulty.textContent = 'HARD'; difficulty.style.color="#ffb300";}
+
+    // Atur grid css agar responsif untuk ukuran berapapun (terutama mobile untuk 5x5)
+    board.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+    
+    // Inisialisasi tile
+    tiles = []; 
+    for (let i = 1; i < size * size; i++) tiles.push(i); 
+    tiles.push(0); // 0 adalah kotak kosong
+    
+    // Acak puzzle
+    for (let i = 0; i < (size * size * 20); i++) shuffle();
+    draw();
+
+    // Timer
+    clearInterval(timer);
+    timeEl.textContent = timeLeft;
+    timer = setInterval(() => {
+        timeLeft--; timeEl.textContent = timeLeft;
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            beep(200, 300);
+            updateHighScore();
+            showPop('GAME OVER', 'Time Up! Final Score: ' + score, true);
+        }
+    }, 1000);
+}
+
+function shuffle() {
+    const e = tiles.indexOf(0), r = Math.floor(e / size), c = e % size, op = [];
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(d => {
+        let nr = r + d[0], nc = c + d[1];
+        if (nr >= 0 && nr < size && nc >= 0 && nc < size) op.push(nr * size + nc);
+    });
+    const t = op[Math.floor(Math.random() * op.length)];
+    [tiles[e], tiles[t]] = [tiles[t], tiles[e]];
+}
+
+function draw() {
+    board.innerHTML = '';
+    tiles.forEach((v, i) => {
+        let d = document.createElement('div');
+        d.className = 'tile' + (v === 0 ? ' empty' : '');
+        d.textContent = v || '';
+        if (v) d.onclick = () => move(i);
+        board.appendChild(d);
+    });
+}
+
+function move(i) {
+    const e = tiles.indexOf(0);
+    const r1 = Math.floor(i / size), c1 = i % size, r2 = Math.floor(e / size), c2 = e % size;
+    // Cek apakah sebelahan
+    if (Math.abs(r1 - r2) + Math.abs(c1 - c2) !== 1) return;
+    
+    [tiles[i], tiles[e]] = [tiles[e], tiles[i]];
+    beep(700, 50);
+    draw(); 
+    checkWin();
+}
+
+function checkWin() {
+    for (let i = 0; i < tiles.length - 1; i++) {
+        if (tiles[i] !== i + 1) return; // Belum menang
+    }
+    
+    // Jika menang
+    clearInterval(timer);
+    const bonus = timeLeft * 5;
+    score += reward + bonus;
+    scoreEl.textContent = score;
+
+    if (level < 3) {
+        showPop('LEVEL COMPLETE!', `Reward: ${reward} | Time Bonus: ${bonus}<br>Total Score: ${score}`, false, true);
+        beep(1100, 150);
+    } else {
+        updateHighScore();
+        showPop('CONGRATULATIONS!', `You completed the game!<br>Final Score: ${score}`, true);
+        beep(1300, 250);
+    }
+}
+
+function updateHighScore() {
+    let hs = Math.max(score, Number(localStorage.getItem('cyberPuzzleHS') || 0));
+    localStorage.setItem('cyberPuzzleHS', hs);
+    highEl.textContent = hs;
+}
+
+function showPop(t, m, showReplay = false, showContinue = false) {
+    popTitle.textContent = t;
+    popText.innerHTML = m;
+    playAgainBtn.style.display = showReplay ? 'inline-block' : 'none';
+    continueBtn.style.display = showContinue ? 'inline-block' : 'none';
+    popup.style.display = 'flex';
+}
+
+/* KONTROL UI NAVIGASI */
+function startGame(mode) {
+    startMode = mode;
+    level = mode;
+    score = 0;
+    scoreEl.textContent = '0';
+    highEl.textContent = localStorage.getItem('cyberPuzzleHS') || '0';
+    
+    // Animasi Pindah Layar
+    mainMenu.classList.remove('active');
+    gameScreen.classList.add('active');
+    
+    setupGame();
+}
+
+function quitToMenu() {
+    clearInterval(timer);
+    popup.style.display = 'none';
+    gameScreen.classList.remove('active');
+    mainMenu.classList.add('active');
+}
+
+continueBtn.onclick = () => {
+    level++;
+    popup.style.display = 'none';
+    setupGame();
+};
+
+playAgainBtn.onclick = () => {
+    popup.style.display = 'none';
+    score = 0; 
+    level = startMode;
+    scoreEl.textContent = '0';
+    setupGame();
+};
+
+// Setup skor awal di layar saat muat
+highEl.textContent = localStorage.getItem('cyberPuzzleHS') || '0';
+</script>
+</body>
+</html>

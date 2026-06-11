@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jay Ball Pro</title>
+
+<style>
+    /* ===== KIPER TAMBAHAN (TANGAN + KAKI) ===== */
+
+/* tangan */
+#goalkeeper .arm {
+  width: 7px;
+  height: 22px;
+  background: #ef4444;
+  position: absolute;
+  top: 25px;
+}
+
+#goalkeeper .arm.left {
+  left: -5px;
+  transform: rotate(15deg);
+}
+
+#goalkeeper .arm.right {
+  right: -5px;
+  transform: rotate(-15deg);
+}
+
+
+/* sarung tangan */
+#goalkeeper .glove{
+  width:10px;
+  height:10px;
+  background:white;
+  border-radius:50%;
+  position:absolute;
+  top:45px;
+}
+
+#goalkeeper .glove.left{ left:-2px; }
+#goalkeeper .glove.right{ right:-2px; }
+
+/* kaki */
+#goalkeeper .leg {
+  width: 10px;
+  height: 32px;
+  background: #374151;
+  position: absolute;
+  top: 40px;
+  border-radius: 0 0 5px 5px;
+}
+
+#goalkeeper .leg.left {
+  left: 8px;
+  transform: rotate(4deg);
+}
+
+#goalkeeper .leg.right {
+  right: 8px;
+  transform: rotate(-4deg);
+}
+  body {
+    margin: 0;
+    font-family: Arial;
+    background: #0b1220;
+    color: white;
+    text-align: center;
+  }
+
+  h1 { margin-top: 10px; }
+
+  #scoreboard {
+    margin: 10px;
+    font-size: 18px;
+  }
+
+  #field {
+  width: 98vw;
+  max-width: 500px;
+  height: 75vh;
+  margin: auto;
+  background:
+repeating-linear-gradient(
+  90deg,
+  #15803d 0px,
+  #15803d 40px,
+  #166534 40px,
+  #166534 80px
+);
+    border: 3px solid white;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #goal {
+  width: 220px;
+  height: 90px;
+  position: absolute;
+  top: 0;
+  left: 100px;
+  background: transparent;
+}
+
+.post {
+  width: 6px;
+  height: 90px;
+  background: white;
+  position: absolute;
+  top: 0;
+}
+
+.post.left { left: 0; }
+.post.right { right: 0; }
+
+.crossbar {
+  width: 220px;
+  height: 6px;
+  background: white;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.net {
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 220px;
+  height: 84px;
+
+  background-image:
+    linear-gradient(to right, rgba(255,255,255,0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.15) 1px, transparent 1px);
+
+  background-size: 15px 15px;
+}
+
+  #goalkeeper {
+  width: 40px;
+  height: 60px;
+  position: absolute;
+  top: 10px;
+  left: 180px;
+}
+
+/* kepala */
+#goalkeeper .head {
+  width: 26px;
+  height: 26px;
+  background: #ffd1a8;
+  border-radius: 50%;
+  margin: auto;
+  position: relative;
+}
+#goalkeeper .head::before{
+  content:"👀";
+  position:absolute;
+  top:4px;
+  left:3px;
+  font-size:10px;
+}
+
+#goalkeeper .head::after{
+  content:"◡";
+  position:absolute;
+  bottom:0px;
+  left:8px;
+  font-size:10px;
+  color:black;
+}
+#goalkeeper .head::before{
+  content:"";
+  position:absolute;
+  top:-2px;
+  left:1px;
+  width:20px;
+  height:8px;
+  background:#111;
+  border-radius:10px 10px 0 0;
+}
+  
+#goalkeeper .head {
+  width: 26px;
+  height: 26px;
+  background: #ffd1a8;
+  border-radius: 50%;
+  margin: auto;
+  position: relative;
+}
+
+/* rambut */
+#goalkeeper .head::before{
+  content:"";
+  position:absolute;
+  top:-2px;
+  left:2px;
+  width:22px;
+  height:8px;
+  background:#111;
+  border-radius:10px 10px 0 0;
+}
+
+/* mata */
+#goalkeeper .head::after{
+  content:"◉ ◉";
+  position:absolute;
+  top:5px;
+  left:3px;
+  font-size:9px;
+  color:black;
+}
+
+/* badan */
+#goalkeeper .body {
+  width: 32px;
+  height: 40px;
+  background: #ef4444;
+  margin: auto;
+  margin-top: 2px;
+  border-radius: 6px;
+}
+
+  #ball {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  position: absolute;
+  bottom: 40px;
+  left: 195px;
+
+  background:
+    radial-gradient(circle at center, black 12%, transparent 13%),
+    radial-gradient(circle at 25% 25%, black 8%, transparent 9%),
+    radial-gradient(circle at 75% 25%, black 8%, transparent 9%),
+    radial-gradient(circle at 25% 75%, black 8%, transparent 9%),
+    radial-gradient(circle at 75% 75%, black 8%, transparent 9%),
+    white;
+
+  border: 2px solid #ddd;
+}
+
+  #aim {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    cursor: crosshair;
+  }
+
+  #powerBar {
+    width: 200px;
+    height: 10px;
+    background: #333;
+    margin: 10px auto;
+    border: 1px solid white;
+  }
+
+  #power {
+    height: 100%;
+    width: 0%;
+    background: yellow;
+  }
+
+#goalText {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 40px;
+  font-weight: bold;
+  opacity: 0;
+  transition: 0.2s;
+  z-index: 999;
+}
+
+  button {
+    margin-top: 10px;
+    padding: 8px 12px;
+  }
+  #field::after{
+  content:"JAY";
+  position:absolute;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+  font-size:110px;
+  font-weight:900;
+  font-family:Impact, Arial Black, sans-serif;
+  color:#a855f7;
+text-shadow:0 0 8px rgba(168,85,247,0.5);
+  letter-spacing:15px;
+  text-transform:uppercase;
+  pointer-events:none;
+  user-select:none;
+}
+#field::before{
+  content:"";
+  position:absolute;
+  width:260px;
+  height:260px;
+  border:4px solid rgba(255,255,255,0.35);
+  border-radius:50%;
+  top:50%;
+  left:50%;
+  transform:translate(-50%,-50%);
+}
+
+/* PEMAIN PENENDANG */
+#player{
+  position:absolute;
+  bottom:5px;
+  left:175px;
+  width:60px;
+  height:80px;
+}
+
+#player .phead{
+  width:20px;
+  height:20px;
+  background:#ffd1a8;
+  border-radius:50%;
+  position:absolute;
+  left:20px;
+  top:0;
+}
+
+#player .pbody{
+  width:28px;
+  height:35px;
+  background:#2563eb;
+  border-radius:5px;
+  position:absolute;
+  left:16px;
+  top:20px;
+}
+
+#player .pbody::after{
+  content:"2";
+  position:absolute;
+  top:8px;
+  left:9px;
+  color:white;
+  font-size:12px;
+  font-weight:bold;
+}
+
+#player .pleg{
+  width:8px;
+  height:25px;
+  background:#111827;
+  position:absolute;
+  top:52px;
+}
+
+#player .pleg.left{
+  left:18px;
+}
+
+#player .pleg.right{
+  left:34px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>⚽ Jay Ball Pro</h1>
+
+<div id="scoreboard">
+Score: <span id="score">0</span><br>
+High Score: <span id="highScore">0</span><br>
+Time: <span id="timer">60</span>
+</div>
+
+<div id="powerBar"><div id="power"></div></div>
+
+<button onclick="resetGame()">Reset</button>
+
+<div id="field">
+  <div id="goal">
+  <div class="post left"></div>
+  <div class="post right"></div>
+  <div class="crossbar"></div>
+  <div class="net"></div>
+</div>
+  <div id="goalkeeper">
+  <div class="head"></div>
+  <div class="body"></div>
+
+  <div class="arm left"></div>
+  <div class="arm right"></div>
+
+  <div class="glove left"></div>
+  <div class="glove right"></div>
+
+  <div class="leg left"></div>
+  <div class="leg right"></div>
+</div>
+  
+
+<div id="ball"></div>
+  <div id="aim"
+     onmousedown="chargeShot(event)"
+     onmouseup="shoot()"
+     ontouchstart="chargeShot(event.touches[0])"
+     ontouchend="shoot()">
+</div>
+  <div id="goalText">GOAL!</div>
+</div>
+
+
+<script>
+let score = 0;
+let highScore = localStorage.getItem("jayHighScore") || 0;
+let power = 0;
+let charging = false;
+let shooting = false;
+let powerInterval = null;
+let targetX = 210;
+
+const scoreEl = document.getElementById("score");
+const highScoreEl = document.getElementById("highScore");
+
+highScoreEl.innerText = highScore;
+const powerEl = document.getElementById("power");
+const ball = document.getElementById("ball");
+const keeper = document.getElementById("goalkeeper");
+const goalText = document.getElementById("goalText");
+const field = document.getElementById("field");
+
+keeper.style.left = "180px";
+
+function beep(freq,time=0.12){
+  const ctx = new(window.AudioContext||window.webkitAudioContext)();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.frequency.value = freq;
+  gain.gain.value = 0.15;
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + time);
+}
+
+let keeperDir = 1;
+setInterval(()=>{
+  
+  let x = parseInt(keeper.style.left);
+  x += keeperDir * 8;
+  if(x > 280) keeperDir = -1;
+  if(x < 100) keeperDir = 1;
+  keeper.style.left = x + "px";
+},50);
+
+function chargeShot(e){
+  if(shooting) return;
+  charging = true;
+  power = 0;
+  clearInterval(powerInterval);
+
+  const rect = field.getBoundingClientRect();
+  targetX = e.clientX - rect.left;
+
+  powerInterval = setInterval(()=>{
+    power += 2;
+    if(power > 100) power = 100;
+    powerEl.style.width = power + "%";
+  },20);
+}
+
+function shoot(){
+  if(!charging || shooting) return;
+
+  charging = false;
+  shooting = true;
+  clearInterval(powerInterval);
+
+  let x = 195;
+  let y = 40;
+  let target = targetX;
+
+  if(target < 75) target = 75;
+  if(target > 345) target = 345;
+
+  const anim = setInterval(()=>{
+    y += 8 + power / 10;
+    x += (target - x) * 0.08;
+
+    ball.style.left = x + "px";
+    ball.style.bottom = y + "px";
+
+    const scale = Math.max(0.4, 1 - (y / 650));
+    ball.style.transform = `scale(${scale})`;
+
+    if(y >= 510){
+      clearInterval(anim);
+      checkGoal(target);
+      setTimeout(resetBall,700);
+    }
+  },20);
+}
+
+function checkGoal(ballX){
+  const keeperCenter = parseInt(keeper.style.left) + 20;
+  const diff = Math.abs(ballX - keeperCenter);
+
+  if(diff > 40){
+
+  score += 10;
+  scoreEl.innerText = score;
+
+  if(score > highScore){
+
+    highScore = score;
+
+    localStorage.setItem(
+      "jayHighScore",
+      highScore
+    );
+
+    highScoreEl.innerText = highScore;
+  }
+
+  showText("GOAL!");
+  beep(700);
+
+} else {
+    showText("SAVE!");
+    beep(200);
+  }
+}
+
+function showText(msg){
+  goalText.innerText = msg;
+  goalText.style.opacity = 1;
+  setTimeout(()=>{
+    goalText.style.opacity = 0;
+  },800);
+}
+
+function resetBall(){
+  ball.style.left = "195px";
+  ball.style.bottom = "40px";
+  ball.style.transform = "scale(1)";
+  power = 0;
+  powerEl.style.width = "0%";
+  shooting = false;
+}
+
+let timeLeft = 60;
+
+const timerEl = document.getElementById("timer");
+
+setInterval(() => {
+
+  if(timeLeft <= 0) return;
+
+  timeLeft--;
+
+  timerEl.innerText = timeLeft;
+
+  if(timeLeft === 0){
+    gameOver();
+  }
+
+},1000);
+
+function gameOver(){
+
+  shooting = true;
+
+  goalText.innerText = "GAME OVER";
+  goalText.style.opacity = 1;
+
+  alert(
+    "GAME OVER\n\n" +
+    "Score: " + score +
+    "\nHigh Score: " + highScore
+  );
+}
+
+function resetGame(){
+  score = 0;
+  scoreEl.innerText = "0";
+  resetBall();
+}
+</script>
+
+
+</body>
+</html>

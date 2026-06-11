@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🚀 Jay Jet Miner Mobile</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    touch-action:none;
+}
+
+body{
+    overflow:hidden;
+    background:#000;
+    font-family:Arial,sans-serif;
+}
+
+canvas{
+    display:block;
+    width:100vw;
+    height:100vh;
+}
+
+#ui{
+    position:absolute;
+    top:10px;
+    left:10px;
+    right:10px;
+
+    display:flex;
+    justify-content:space-between;
+
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+
+    z-index:10;
+    text-shadow:0 0 5px #000000;
+}
+
+.leftUI{
+    text-align:left;
+}
+
+.rightUI{
+    text-align:right;
+}
+#menu{
+    position:absolute;
+    inset:0;
+    background:rgba(0,0,0,.85);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    color:white;
+    z-index:100;
+}
+
+#menu h1{
+    font-size:42px;
+    margin-bottom:10px;
+}
+
+#menu p{
+    margin-bottom:20px;
+}
+
+#menu button{
+    padding:15px 35px;
+    font-size:24px;
+    border:none;
+    border-radius:12px;
+    cursor:pointer;
+    background:#00bfff;
+    color:white;
+}
+
+.control{
+    position:absolute;
+    bottom:25px;
+    width:80px;
+    height:80px;
+    border:none;
+    border-radius:50%;
+    font-size:34px;
+    color:white;
+    background:rgba(255,255,255,.25);
+    backdrop-filter:blur(4px);
+    z-index:50;
+}
+
+#left{
+    left:20px;
+}
+
+#right{
+    right:20px;
+}
+</style>
+
+</head>
+
+<body>
+
+<div id="ui">
+    <div class="leftUI">
+        🚀 <span id="score">0</span><br>
+        Coins: <span id="coins">0</span>
+    </div>
+
+    <div class="rightUI">
+        <span id="hp">❤️❤️❤️</span><br>
+        🏆 <span id="high">0</span>
+    </div>
+</div>
+
+<div id="menu">
+    <h1>🚀 JAY JET MINER</h1>
+    <p>Kumpulkan coin & hindari rintangan</p>
+    <button onclick="startGame()">PLAY</button>
+</div>
+
+<button id="left" class="control">◀</button> <button id="right" class="control">▶</button>
+
+<canvas id="game"></canvas>
+
+<audio id="bgm" loop>
+    <source src="space.mp3" type="audio/mpeg">
+</audio>
+
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const coinSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3");
+
+const explosionSound = new Audio("https://assets.mixkit.co/active_storage/sfx/270/270-preview.mp3");
+const gameOverSound = new Audio("https://assets.mixkit.co/active_storage/sfx/1114/1114-preview.mp3");
+
+const zombieImg = new Image();
+zombieImg.src = "zombie.png";
+
+const jetImg = new Image();
+jetImg.src = "jet.png";
+
+function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize",resize);
+
+let running=false;
+let score=0;
+let scoreTimer=0;
+let coins=0;
+let hp=3;
+let invincible=false;
+let explosionTimer=0;
+
+let highScore=
+localStorage.getItem("jetHigh") || 0;
+
+document.getElementById("high").innerText=
+highScore;
+
+function updateHP(){
+    document.getElementById("hp").innerText=
+    "❤️".repeat(hp);
+}
+
+const player={
+    x:0,
+    y:0,
+    w:80,
+    h:80,
+    speed:8,
+    visible:true
+};
+
+function resetPlayer(){
+    player.x=canvas.width/2-player.w/2;
+    player.y=canvas.height-180;
+}
+
+resetPlayer();
+
+const coinsArr=[];
+const obstacles=[];
+const zombies=[];
+const stars=[];
+const keys={};
+
+for(let i=0;i<120;i++){
+    stars.push({
+        x:Math.random()*canvas.width,
+        y:Math.random()*canvas.height,
+        s:Math.random()*3+1
+    });
+}
+
+document.addEventListener("keydown",e=>{
+    keys[e.key]=true;
+});
+
+document.addEventListener("keyup",e=>{
+    keys[e.key]=false;
+});
+
+const leftBtn=document.getElementById("left");
+const rightBtn=document.getElementById("right");
+
+function holdLeft(v){
+    keys["ArrowLeft"]=v;
+}
+
+function holdRight(v){
+    keys["ArrowRight"]=v;
+}
+
+leftBtn.addEventListener("touchstart",e=>{
+    e.preventDefault();
+    holdLeft(true);
+});
+
+leftBtn.addEventListener("touchend",()=>{
+    holdLeft(false);
+});
+
+rightBtn.addEventListener("touchstart",e=>{
+    e.preventDefault();
+    holdRight(true);
+});
+
+rightBtn.addEventListener("touchend",()=>{
+    holdRight(false);
+});
+
+leftBtn.addEventListener("mousedown",()=>holdLeft(true));
+leftBtn.addEventListener("mouseup",()=>holdLeft(false));
+
+rightBtn.addEventListener("mousedown",()=>holdRight(true));
+rightBtn.addEventListener("mouseup",()=>holdRight(false));
+
+function startGame(){
+    const bgm = document.getElementById("bgm");
+bgm.volume = 0.4;
+bgm.play();
+
+    score=0;
+    coins=0;
+    hp=3;
+
+    updateHP();
+
+    coinsArr.length=0;
+    obstacles.length=0;
+    zombies.length=0;
+
+    resetPlayer();
+
+player.visible = true;
+invincible = false;
+explosionTimer = 0;
+
+running = true;
+
+    document.querySelector("#menu h1").innerText=
+    "🚀 JAY JET MINER";
+
+    document.querySelector("#menu button").innerText=
+    "PLAY";
+
+    document.getElementById("menu").style.display=
+    "none";
+}
+
+function gameOver(){
+gameOverSound.currentTime = 0;
+gameOverSound.play();
+document.getElementById("bgm").pause();
+    running=false;
+
+    if(score>highScore){
+
+        highScore=score;
+
+        localStorage.setItem(
+            "jetHigh",
+            highScore
+        );
+    }
+
+    document.getElementById("high").innerText=
+    highScore;
+
+    document.querySelector("#menu h1").innerText=
+    "💥 GAME OVER";
+
+    document.querySelector("#menu button").innerText=
+    "RESTART";
+
+    document.getElementById("menu").style.display=
+    "flex";
+}
+
+setInterval(()=>{
+
+    if(!running) return;
+
+    coinsArr.push({
+        x:20+Math.random()*(canvas.width-40),
+        y:-20,
+        r:12
+    });
+
+    obstacles.push({
+        x:20+Math.random()*(canvas.width-70),
+        y:-40,
+        w:45,
+        h:45
+    });
+
+    zombies.push({
+        x:20+Math.random()*(canvas.width-70),
+        y:-60,
+        w:35,
+        h:45
+    });
+
+},900);
+
+function crash(){
+
+    hp--;
+    updateHP();
+
+    explosionSound.currentTime = 0;
+    explosionSound.play();
+
+    explosionTimer=60;
+    player.visible=false;
+
+    if(hp<=0){
+
+        setTimeout(()=>{
+            gameOver();
+        },800);
+
+        return;
+    }
+
+    invincible=true;
+
+    setTimeout(()=>{
+
+        resetPlayer();
+
+        player.visible=true;
+
+    },800);
+
+    setTimeout(()=>{
+        invincible=false;
+    },2000);
+}
+
+function update(){
+
+    if(!running) return;
+
+    if(keys["ArrowLeft"])
+        player.x-=player.speed;
+
+    if(keys["ArrowRight"])
+        player.x+=player.speed;
+
+    if(player.x<0)
+        player.x=0;
+
+    if(player.x>canvas.width-player.w)
+        player.x=canvas.width-player.w;
+
+    scoreTimer++;
+
+if(scoreTimer >= 30){
+    score++;
+    scoreTimer = 0;
+}
+
+    for(let i=coinsArr.length-1;i>=0;i--){
+
+        coinsArr[i].y+=5;
+
+        const dx=
+        player.x+25-coinsArr[i].x;
+
+        const dy=
+        player.y+25-coinsArr[i].y;
+
+        if(Math.sqrt(dx*dx+dy*dy)<30){
+
+            coins++;
+
+            coinSound.currentTime = 0;
+            coinSound.play();
+
+            coinsArr.splice(i,1);
+        }
+
+        if(coinsArr[i] &&
+        coinsArr[i].y>canvas.height+50)
+        coinsArr.splice(i,1);
+    }
+
+    for(let i=obstacles.length-1;i>=0;i--){
+
+        let o=obstacles[i];
+
+        o.y+=7;
+
+        if(
+            !invincible &&
+            player.visible &&
+            player.x<o.x+o.w &&
+            player.x+player.w>o.x &&
+            player.y<o.y+o.h &&
+            player.y+player.h>o.y
+        ){
+
+            obstacles.splice(i,1);
+            crash();
+            break;
+        }
+
+        if(o.y>canvas.height+50)
+            obstacles.splice(i,1);
+    }
+
+    for(let i=zombies.length-1;i>=0;i--){
+
+        let z=zombies[i];
+
+        if(
+            !invincible &&
+            player.visible &&
+            player.x<z.x+z.w &&
+            player.x+player.w>z.x &&
+            player.y<z.y+z.h &&
+            player.y+player.h>z.y
+        ){
+            zombies.splice(i,1);
+            crash();
+            break;
+        }
+
+        if(z.y>canvas.height+100){
+            zombies.splice(i,1);
+        }
+    }
+
+    if(explosionTimer>0)
+        explosionTimer--;
+
+    document.getElementById("score").innerText=
+    score;
+
+    document.getElementById("coins").innerText=
+    coins;
+}
+
+function drawStars(){
+
+    ctx.fillStyle="white";
+
+    stars.forEach(star=>{
+
+        ctx.fillRect(
+            star.x,
+            star.y,
+            star.s,
+            star.s
+        );
+
+        star.y+=2;
+
+        if(star.y>canvas.height){
+
+            star.y=0;
+            star.x=Math.random()*canvas.width;
+        }
+    });
+}
+
+function drawJet(){
+
+    if(!player.visible) return;
+
+    if(invincible){
+        if(Math.floor(Date.now()/100)%2)
+            return;
+    }
+
+    ctx.drawImage(
+        jetImg,
+        player.x,
+        player.y,
+        player.w,
+        player.h
+    );
+}
+
+
+function drawExplosion(){
+
+    if(explosionTimer<=0) return;
+
+    const radius=
+    (60-explosionTimer)*2;
+
+    ctx.beginPath();
+
+    ctx.arc(
+        player.x+25,
+        player.y+25,
+        radius,
+        0,
+        Math.PI*2
+    );
+
+    ctx.fillStyle=
+    "rgba(255,150,0,0.7)";
+
+    ctx.fill();
+}
+
+function drawCoins(){
+
+    coinsArr.forEach(c=>{
+
+        ctx.fillStyle="gold";
+
+        ctx.beginPath();
+        ctx.arc(c.x,c.y,c.r,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.strokeStyle="#fff";
+        ctx.stroke();
+    });
+}
+
+function drawObstacles(){
+
+    obstacles.forEach(o=>{
+
+        // badan meteor
+        ctx.fillStyle="#8B4513";
+
+        ctx.beginPath();
+        ctx.arc(
+            o.x + o.w/2,
+            o.y + o.h/2,
+            o.w/2,
+            0,
+            Math.PI*2
+        );
+        ctx.fill();
+
+        // lubang meteor
+        ctx.fillStyle="#5e2f0d";
+
+        ctx.beginPath();
+        ctx.arc(o.x+12,o.y+12,4,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(o.x+28,o.y+20,3,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(o.x+18,o.y+30,5,0,Math.PI*2);
+        ctx.fill();
+    });
+
+}
+
+
+function drawZombies(){
+
+    zombies.forEach(z=>{
+
+        z.y += 5;
+
+        ctx.drawImage(
+            zombieImg,
+            z.x,
+            z.y,
+            z.w,
+            z.h
+        );
+    });
+}
+
+function draw(){
+
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    drawStars();
+    drawCoins();
+    drawObstacles();
+    drawZombies();
+    drawJet();
+    drawExplosion();
+}
+
+function loop(){
+
+    update();
+    draw();
+
+    requestAnimationFrame(loop);
+}
+
+updateHP();
+loop();
+
+</script>
+
+</body>
+</html>

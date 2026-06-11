@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flag Master</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<style>
+body{
+margin:0;
+font-family:'Orbitron',sans-serif;
+color:#fff;
+background:url('https://png.pngtree.com/thumb_back/fw800/background/20251009/pngtree-futuristic-global-network-holographic-earth-with-digital-circuit-board-image_19770800.webp') center/cover fixed;
+}
+body:before{content:'';position:fixed;inset:0;background:rgba(2,5,18,.82)}
+.wrap{position:relative;z-index:1;max-width:850px;margin:auto;padding:20px}
+h1{
+text-align:center;
+font-size:2.7rem;
+background:linear-gradient(90deg,#00e5ff,#6fc3ff,#b388ff,#ff4fd8);
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+}
+.card,.panel{
+background:rgba(8,12,28,.82);
+backdrop-filter:blur(8px);
+border:1px solid rgba(126,240,255,.18);
+border-radius:24px;
+box-shadow:0 0 12px rgba(138,43,226,.18);
+}
+.card{padding:20px;margin:14px 0;text-align:center;cursor:pointer}
+.modeCard{
+padding:20px;border-radius:20px;
+background:rgba(15,20,45,.45);
+border:1px solid rgba(126,240,255,.18);
+}
+.easy{color:#b6ff00;text-shadow:0 0 12px #b6ff00}
+.normal{color:#00e5ff;text-shadow:0 0 12px #00e5ff}
+.hard{color:#ffb300;text-shadow:0 0 12px #ffb300}
+.express{color:#ff4fd8;text-shadow:0 0 12px #ff4fd8}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel{text-align:center;padding:12px}
+.big{font-size:28px;color:#00e5ff;font-weight:900}
+button{width:100%;padding:14px;border:none;border-radius:14px;font-family:Orbitron,sans-serif}
+.opt{background:rgba(168,76,255,.15);color:white;border:1px solid rgba(126,240,255,.18)}
+.btn{background:linear-gradient(90deg,#00d4ff,#7b2cff);color:white}
+#flag{display:block;margin:20px auto;max-width:300px;width:80%;border-radius:12px;box-shadow:0 0 25px #00e5ff}
+#hearts{text-align:center;font-size:28px}
+
+#game,#complete,#over{display:none;}
+#menu{display:block;}
+
+#complete,#over{
+  max-width:700px;
+  margin:30px auto;
+  padding:30px;
+}
+#completeText,#overText{
+  margin:20px 0;
+  line-height:1.8;
+  font-size:22px;
+}
+#complete .btn,#over .btn{
+  display:block;
+  width:90%;
+  margin:16px auto;
+  height:58px;
+  font-size:18px;
+  font-weight:700;
+  border-radius:16px;
+}
+
+
+#worldfx{
+position:fixed;
+inset:0;
+width:100%;
+height:100%;
+z-index:0;
+pointer-events:none;
+}
+.scanline{
+position:fixed;
+left:0;
+width:100%;
+height:2px;
+background:rgba(0,229,255,.25);
+box-shadow:0 0 12px rgba(0,229,255,.4);
+animation:scan 12s linear infinite;
+pointer-events:none;
+z-index:0;
+}
+@keyframes scan{
+0%{top:-5%;opacity:0}
+10%{opacity:1}
+90%{opacity:1}
+100%{top:105%;opacity:0}
+}
+
+</style>
+
+</head>
+<body><div class="scanline"></div>
+<canvas id="worldfx"></canvas><div class="wrap">
+
+
+<div id="menu">
+
+    <h1>FLAG MASTER</h1>
+    <div style="text-align:center;margin-top:-10px;margin-bottom:20px;">
+      <div style="font-size:1.1rem;letter-spacing:3px;color:#dff8ff;text-shadow:0 0 10px #00e5ff;">
+        GLOBAL CHALLENGE
+      </div>
+      <div style="font-size:0.85rem;letter-spacing:4px;color:#caa6ff;text-shadow:0 0 10px #b388ff;">
+        by JAY NETWORK
+      </div>
+    </div>
+    
+
+<div class="card modeCard easy" onclick="start('easy')">
+<i class="fa-solid fa-square-check" style="font-size:34px"></i><br><br>
+EASY<br><small>15 Questions • 12 Seconds</small>
+</div>
+
+<div class="card modeCard normal" onclick="start('normal')">
+<i class="fa-solid fa-layer-group" style="font-size:34px"></i><br><br>
+NORMAL<br><small>15 Questions • 9 Seconds</small>
+</div>
+
+<div class="card modeCard hard" onclick="start('hard')">
+<i class="fa-solid fa-fire-flame-curved" style="font-size:34px"></i><br><br>
+HARD<br><small>15 Questions • 6 Seconds</small>
+</div>
+
+<div class="card modeCard express" onclick="start('express')">
+<i class="fa-solid fa-bolt" style="font-size:34px"></i><br><br>
+EXPRESS<br><small>15 Questions • 3 Seconds</small>
+</div>
+</div>
+
+
+<div id="game">
+<div class="grid">
+<div class="panel">MODE<div id="mode" class="big"></div></div>
+<div class="panel">TIME<div id="time" class="big"></div></div>
+<div class="panel">SCORE<div id="score" class="big">0</div></div>
+<div class="panel">HIGH<div id="high" class="big">0</div></div>
+</div>
+<h2 id="hearts" style="text-align:center">❤️❤️❤️</h2>
+<div id="progress" style="text-align:center"></div>
+<img id="flag">
+<div id="options"></div>
+<button class="btn" onclick="home()">🏠 HOME</button>
+</div>
+
+<div id="complete" class="card">
+<h2>🏆 LEVEL COMPLETE</h2>
+<div id="completeText"></div>
+<button class="btn" onclick="continueMode()">▶ CONTINUE</button>
+<button class="btn" onclick="home()">🏠 HOME</button>
+</div>
+
+<div id="over" class="card">
+<h2>💀 GAME OVER</h2>
+<div id="overText"></div>
+<button class="btn" onclick="restart()">🔄 PLAY AGAIN</button>
+<button class="btn" onclick="home()">🏠 HOME</button>
+</div>
+
+</div>
+
+<script>
+const easy=[['Indonesia','id'],['Japan','jp'],['South Korea','kr'],['United States','us'],['China','cn'],['United Kingdom','gb'],['France','fr'],['Germany','de'],['Brasil','br'],['Canada','ca'],['Australia','au'],['India','in'],['Malaysia','my'],['Singapore','sg'],['Thailand','th'],['Vietnam','vn'],['Italy','it'],['Spain','es'],['Netherlands','nl'],['Switzerland','ch'],['Mexico','mx'],['Argentina','ar'],['Turkey','tr'],['Saudi Arabia','sa'],['Egypt','eg'],['South Africa','za'],['Pakistan','pk'],['Philippines','ph'],['New Zealand','nz'],['Russia','ru']];
+const normal=easy.concat([['Portugal','pt'],['Swedia','se'],['Norwegia','no'],['Finlandia','fi'],['Denmark','dk'],['Greece','gr'],['Poland','pl'],['Austria','at'],['Belgia','be'],['Ireland','ie'],['Chile','cl'],['Peru','pe'],['Colombia','co'],['Ukraina','ua'],['Czech Republic','cz']]);
+const hard=normal.concat([['Kazakhstan','kz'],['Mongolia','mn'],['Georgia','ge'],['Armenia','am'],['Latvia','lv'],['Lithuania','lt'],['Estonia','ee'],['Slovenia','si'],['Slovakia','sk'],['Croatia','hr'],['Serbia','rs'],['Albania','al'],['Bosnia','ba'],['Montenegro','me'],['Moldova','md']]);
+const express=hard;
+
+const cfg={easy:{t:12,next:'normal',pool:easy},normal:{t:9,next:'hard',pool:normal},hard:{t:6,next:'express',pool:hard},express:{t:3,next:null,pool:express}};
+
+let mode,life,score,q,timer,answer,list=[];
+
+function beep(f){const a=new(window.AudioContext||window.webkitAudioContext)();const o=a.createOscillator();const g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=f;o.start();g.gain.value=.05;g.gain.exponentialRampToValueAtTime(.0001,a.currentTime+.15);o.stop(a.currentTime+.15);}
+
+function shuffle(a){return [...a].sort(()=>Math.random()-0.5)}
+
+function start(m){
+mode=m;life=3;score=0;q=0;
+list=shuffle(cfg[m].pool).slice(0,15);
+show('game');nextQ();
+}
+
+function nextQ(){
+if(q>=15){finish();return;}
+q++;
+let c=list[q-1];
+answer=c[0];
+flag.src='https://flagcdn.com/w320/'+c[1]+'.png';
+modeEl();
+let pool=cfg[mode].pool.map(x=>x[0]);
+let opts=[answer];
+while(opts.length<4){let r=pool[Math.floor(Math.random()*pool.length)]; if(!opts.includes(r)) opts.push(r);}
+opts=shuffle(opts);
+options.innerHTML=opts.map(v=>`<button class="opt" onclick="pick('${v}')">${v}</button>`).join('');
+startTimer();
+}
+
+function modeEl(){
+const modeBox=document.getElementById('mode');
+modeBox.textContent=mode.toUpperCase();
+modeBox.style.color={easy:'#b6ff00',normal:'#00e5ff',hard:'#ffb300',express:'#ff4fd8'}[mode];
+modeBox.style.textShadow='0 0 12px '+modeBox.style.color;
+document.getElementById('score').textContent=score;
+document.getElementById('high').textContent=localStorage.getItem('hs_'+mode)||0;
+document.getElementById('hearts').textContent='❤️'.repeat(life);
+document.getElementById('progress').textContent='Question '+q+'/15';
+}
+
+function startTimer(){
+clearInterval(timer);
+let t=cfg[mode].t;
+time.textContent=t;
+timer=setInterval(()=>{t--;time.textContent=t;if(t<=0) wrong();},1000);
+}
+
+function pick(v){if(v===answer){successSound();score+=10;clearInterval(timer);nextQ();}else wrong();}
+
+function wrong(){
+wrongSound();clearInterval(timer);life--;modeEl();
+if(life<=0){
+let hs=Math.max(score,+(localStorage.getItem('hs_'+mode)||0));
+localStorage.setItem('hs_'+mode,hs);
+voiceGameOver();show('over');
+overText.innerHTML='Mode: '+mode.toUpperCase()+'<br>Score: '+score+'<br>High Score: '+hs; speak('Game Over');
+return;
+}
+nextQ();
+}
+
+
+const bonus={easy:50,normal:100,hard:200,express:500};
+const praise=['Good!','Nice!','Cool!','Excellent!','Amazing!','Outstanding!'];
+function speak(t){
+ if(!window.speechSynthesis) return;
+ speechSynthesis.cancel();
+ let u=new SpeechSynthesisUtterance(t);
+ u.lang='en-US';
+ speechSynthesis.speak(u);
+}
+function successSound(){
+ beep(900); setTimeout(()=>beep(1300),90);
+ setTimeout(()=>speak(praise[Math.floor(Math.random()*praise.length)]),120);
+}
+function wrongSound(){
+ beep(220); setTimeout(()=>beep(170),120);
+ setTimeout(()=>speak('Wrong'),150);
+}
+
+function voiceGameOver(){
+ if(window.speechSynthesis){
+   speechSynthesis.cancel();
+   setTimeout(()=>speechSynthesis.speak(new SpeechSynthesisUtterance('Game Over')),200);
+ }
+}
+function voiceLevelComplete(){
+ if(window.speechSynthesis){
+   speechSynthesis.cancel();
+   setTimeout(()=>speechSynthesis.speak(new SpeechSynthesisUtterance('Level Complete')),200);
+ }
+}
+
+function finish(){
+score+=bonus[mode];
+let hs=Math.max(score,+(localStorage.getItem('hs_'+mode)||0));
+localStorage.setItem('hs_'+mode,hs);
+voiceLevelComplete();show('complete');
+completeText.innerHTML='Mode: '+mode.toUpperCase()+'<br>Score: '+score+'<br>Bonus: +'+bonus[mode];
+speak('Excellent Level Complete');
+}
+
+function continueMode(){ if(cfg[mode].next) start(cfg[mode].next); else home(); }
+function restart(){ start(mode); }
+function home(){ clearInterval(timer); show('menu'); }
+function show(id){['menu','game','complete','over'].forEach(x=>document.getElementById(x).style.display='none'); document.getElementById(id).style.display='block';}
+
+const fx=document.getElementById('worldfx');
+const c=fx.getContext('2d');
+
+function rs(){fx.width=innerWidth;fx.height=innerHeight;}
+rs();addEventListener('resize',rs);
+
+const stars=[...Array(40)].map(()=>({x:Math.random()*innerWidth,y:Math.random()*innerHeight,r:Math.random()*1.8+0.5,a:Math.random()}));
+let rot=0;
+
+function draw(){
+c.clearRect(0,0,fx.width,fx.height);
+
+for(const s of stars){
+ s.a+= (Math.random()-0.5)*0.03;
+ s.a=Math.max(.15,Math.min(1,s.a));
+ c.globalAlpha=s.a;
+ c.fillStyle='#9ddfff';
+ c.beginPath();
+ c.arc(s.x,s.y,s.r,0,Math.PI*2);
+ c.fill();
+}
+
+c.globalAlpha=.18;
+
+const cx=fx.width/2;
+const cy=fx.height*0.33;
+const r=Math.min(fx.width,fx.height)*0.18;
+
+rot+=0.003;
+
+c.strokeStyle='rgba(0,229,255,.25)';
+c.lineWidth=1;
+
+c.beginPath();
+c.arc(cx,cy,r,0,Math.PI*2);
+c.stroke();
+
+for(let i=-2;i<=2;i++){
+ c.beginPath();
+ c.ellipse(cx,cy,r*Math.cos(rot+i*.2),r,0,0,Math.PI*2);
+ c.stroke();
+}
+
+const nodes=[];
+for(let i=0;i<8;i++){
+ let a=rot+i*Math.PI/4;
+ let x=cx+Math.cos(a)*r*0.8;
+ let y=cy+Math.sin(a)*r*0.45;
+ nodes.push([x,y]);
+}
+
+for(let i=0;i<nodes.length;i++){
+ let p=nodes[i];
+ let q=nodes[(i+1)%nodes.length];
+
+ c.strokeStyle='rgba(0,229,255,.22)';
+ c.beginPath();
+ c.moveTo(p[0],p[1]);
+ c.lineTo(q[0],q[1]);
+ c.stroke();
+
+ c.fillStyle='rgba(0,229,255,'+(0.5+0.5*Math.sin(rot*20+i))+')';
+ c.beginPath();
+ c.arc(p[0],p[1],3,0,Math.PI*2);
+ c.fill();
+ }
+
+ requestAnimationFrame(draw);
+}
+draw();
+
+</script>
+</body></html>
+<style>.modeTitle{display:block;font-size:1.32rem;font-weight:900;letter-spacing:2px;}
+#worldfx{
+position:fixed;
+inset:0;
+width:100%;
+height:100%;
+z-index:0;
+pointer-events:none;
+}
+.scanline{
+position:fixed;
+left:0;
+width:100%;
+height:2px;
+background:rgba(0,229,255,.25);
+box-shadow:0 0 12px rgba(0,229,255,.4);
+animation:scan 12s linear infinite;
+pointer-events:none;
+z-index:0;
+}
+@keyframes scan{
+0%{top:-5%;opacity:0}
+10%{opacity:1}
+90%{opacity:1}
+100%{top:105%;opacity:0}
+}
+
+</style>
