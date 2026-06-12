@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no" />
+<title>Jay Corsairs Orbit</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#090018;
+  font-family:Arial,Helvetica,sans-serif;
+  touch-action:none;
+  user-select:none;
+}
+canvas{
+  display:block;
+  width:100vw;
+  height:100vh;
+  background:#090018;
+}
+#menu{
+  position:fixed;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(6,0,20,.72);
+  z-index:10;
+}
+.card{
+  width:min(92vw,520px);
+  padding:26px;
+  border-radius:26px;
+  text-align:center;
+  color:white;
+  background:linear-gradient(180deg,rgba(44,0,90,.95),rgba(12,0,32,.96));
+  border:2px solid rgba(181,72,255,.7);
+  box-shadow:0 0 35px rgba(166,52,255,.45), inset 0 0 30px rgba(255,255,255,.04);
+}
+h1{
+  font-size:clamp(34px,8vw,56px);
+  line-height:1;
+  margin-bottom:12px;
+  letter-spacing:1px;
+  text-shadow:0 0 22px #a63cff;
+}
+p{
+  color:#dac7ff;
+  line-height:1.55;
+  margin:12px 0 22px;
+}
+button{
+  border:0;
+  border-radius:999px;
+  padding:14px 28px;
+  font-weight:900;
+  font-size:16px;
+  color:#1b0034;
+  background:linear-gradient(90deg,#ffd33d,#b64cff);
+  box-shadow:0 0 24px rgba(180,64,255,.45);
+  cursor:pointer;
+}
+#hint{
+  position:fixed;
+  left:50%;
+  bottom:22px;
+  transform:translateX(-50%);
+  color:#e9d8ff;
+  background:rgba(37,0,78,.55);
+  border:1px solid rgba(192,94,255,.6);
+  border-radius:999px;
+  padding:10px 16px;
+  font-size:13px;
+  z-index:4;
+  pointer-events:none;
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="menu">
+  <div class="card">
+    <h1>🚀 JAY CORSAIRS</h1>
+    <p>
+      Tap anywhere to reverse direction. Collect JAY coins around the orbit,
+      avoid purple cannon shots fired from the center, and survive each level.
+    </p>
+    <button id="startBtn">START GAME</button>
+  </div>
+</div>
+
+<div id="hint">TAP ANYWHERE TO REVERSE DIRECTION</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const menu = document.getElementById("menu");
+  const startBtn = document.getElementById("startBtn");
+
+  let DPR, W, H, CX, CY, orbitR;
+  let running = false;
+  let gameOver = false;
+
+  let level = 1;
+  let score = 0;
+  let lives = 3;
+  let best = Number(localStorage.getItem("jay_corsairs_best") || 0);
+
+  let angle = -1.25;
+  let dir = 1;
+  let baseSpeed = 0.023;
+
+  let coins = [];
+  let bullets = [];
+  let stars = [];
+  let particles = [];
+  let frame = 0;
+  let invincible = 0;
+
+  function resize(){
+    DPR = Math.min(devicePixelRatio || 1, 2);
+    W = canvas.width = Math.floor(innerWidth * DPR);
+    H = canvas.height = Math.floor(innerHeight * DPR);
+    canvas.style.width = innerWidth + "px";
+    canvas.style.height = innerHeight + "px";
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    CX = innerWidth / 2;
+    CY = innerHeight / 2 + 22;
+    orbitR = Math.min(innerWidth, innerHeight) * 0.34;
+    if(innerWidth < 520) orbitR = Math.min(innerWidth, innerHeight) * 0.38;
+    makeStars();
+  }
+
+  function rand(a,b){ return Math.random()*(b-a)+a; }
+
+  function makeStars(){
+    stars = [];
+    for(let i=0;i<120;i++){
+      stars.push({
+        x:rand(0,innerWidth),
+        y:rand(0,innerHeight),
+        r:rand(.5,2.2),
+        a:rand(.25,1),
+        s:rand(.1,.8)
+      });
+    }
+  }
+
+  function reset(){
+    running = true;
+    gameOver = false;
+    menu.style.display = "none";
+    level = 1;
+    score = 0;
+    lives = 3;
+    frame = 0;
+    angle = -1.25;
+    dir = 1;
+    baseSpeed = 0.023;
+    bullets = [];
+    particles = [];
+    invincible = 60;
+    makeLevel();
+  }
+
+  function makeLevel(){
+    coins = [];
+    bullets = [];
+    const total = 16 + level * 2;
+    for(let i=0;i<total;i++){
+      coins.push({
+        a:(Math.PI*2/total)*i + rand(-0.04,0.04),
+        got:false,
+        pulse:rand(0,Math.PI*2)
+      });
+    }
+  }
+
+  function reverseDirection(){
+    if(!running) return;
+    dir *= -1;
+    spawnParticles(playerX(), playerY(), "#d75cff", 18, 4);
+  }
+
+  addEventListener("pointerdown", (e)=>{
+    if(e.target === startBtn) return;
+    if(!running && gameOver) return;
+    reverseDirection();
+  });
+
+  addEventListener("keydown", (e)=>{
+    if(e.code === "Space" || e.code === "ArrowLeft" || e.code === "ArrowRight"){
+      e.preventDefault();
+      reverseDirection();
+    }
+  });
+
+  startBtn.onclick = reset;
+
+  function playerX(){ return CX + Math.cos(angle) * orbitR; }
+  function playerY(){ return CY + Math.sin(angle) * orbitR; }
+
+  function dist(x1,y1,x2,y2){
+    const dx=x1-x2, dy=y1-y2;
+    return Math.sqrt(dx*dx+dy*dy);
+  }
+
+  function spawnBullet(){
+    const targetA = angle + rand(-0.45,0.45);
+    bullets.push({
+      x:CX,
+      y:CY,
+      vx:Math.cos(targetA) * (3.5 + level * 0.35),
+      vy:Math.sin(targetA) * (3.5 + level * 0.35),
+      r:9 + Math.min(level,8) * .45,
+      life:180,
+      glow:rand(0,Math.PI*2)
+    });
+  }
+
+  function spawnParticles(x,y,color,count,power){
+    for(let i=0;i<count;i++){
+      particles.push({
+        x,y,
+        vx:rand(-power,power),
+        vy:rand(-power,power),
+        r:rand(2,5),
+        life:rand(18,42),
+        color
+      });
+    }
+  }
+
+  function drawBackground(){
+    const g = ctx.createRadialGradient(CX,CY,10,CX,CY,Math.max(innerWidth,innerHeight)*.75);
+    g.addColorStop(0,"#31006b");
+    g.addColorStop(.38,"#180044");
+    g.addColorStop(1,"#070014");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,innerWidth,innerHeight);
+
+    stars.forEach(s=>{
+      s.y += s.s * 0.08;
+      if(s.y > innerHeight) s.y = 0;
+      ctx.globalAlpha = s.a + Math.sin(frame*.04+s.x)*.25;
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+
+    ctx.strokeStyle = "rgba(180,60,255,.18)";
+    ctx.lineWidth = 2;
+    for(let i=0;i<5;i++){
+      ctx.beginPath();
+      const y = (i*180 + frame*.25) % (innerHeight+200) - 100;
+      ctx.moveTo(-80,y);
+      ctx.lineTo(innerWidth+80,y+240);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = "rgba(113,28,255,.18)";
+    ctx.beginPath();
+    ctx.arc(70, innerHeight*.72, 82, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(189,79,255,.12)";
+    ctx.beginPath();
+    ctx.arc(innerWidth-45, innerHeight*.22, 110, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  function drawOrbit(){
+    ctx.save();
+    ctx.strokeStyle = "rgba(184,73,255,.35)";
+    ctx.lineWidth = 15;
+    ctx.beginPath();
+    ctx.arc(CX,CY,orbitR,0,Math.PI*2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(255,255,255,.17)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(CX,CY,orbitR,0,Math.PI*2);
+    ctx.stroke();
+
+    ctx.strokeStyle = "rgba(190,73,255,.33)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(CX,CY,orbitR*.55,0,Math.PI*2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCenterTurret(){
+    ctx.save();
+    ctx.translate(CX,CY);
+
+    for(let i=0;i<8;i++){
+      ctx.rotate(Math.PI/4);
+      const lg = ctx.createLinearGradient(0,0,0,-orbitR*.48);
+      lg.addColorStop(0,"rgba(214,81,255,.95)");
+      lg.addColorStop(.25,"rgba(214,81,255,.55)");
+      lg.addColorStop(1,"rgba(214,81,255,0)");
+      ctx.fillStyle = lg;
+      ctx.beginPath();
+      ctx.moveTo(-4,0);
+      ctx.lineTo(4,0);
+      ctx.lineTo(0,-orbitR*.48);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.fillStyle = "#16002f";
+    ctx.strokeStyle = "#be55ff";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0,0,54,0,Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#2e075f";
+    ctx.beginPath();
+    ctx.arc(0,0,38,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 40px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "#d75cff";
+    ctx.shadowBlur = 18;
+    ctx.fillText("J",0,2);
+    ctx.shadowBlur = 0;
+
+    ctx.restore();
+  }
+
+  function drawCoin(c){
+    if(c.got) return;
+    const x = CX + Math.cos(c.a) * orbitR;
+    const y = CY + Math.sin(c.a) * orbitR;
+    const rr = 15 + Math.sin(frame*.05+c.pulse)*1.5;
+
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.shadowColor = "#ffd13d";
+    ctx.shadowBlur = 16;
+    ctx.fillStyle = "#ffd33d";
+    ctx.beginPath();
+    ctx.arc(0,0,rr,0,Math.PI*2);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#ff9f00";
+    ctx.lineWidth = 5;
+    ctx.stroke();
+
+    ctx.fillStyle = "#7c4a00";
+    ctx.font = "900 19px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("J",0,1);
+    ctx.restore();
+  }
+
+  function drawRocket(){
+    const x = playerX();
+    const y = playerY();
+
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(angle + Math.PI/2 + (dir < 0 ? Math.PI : 0));
+
+    if(invincible > 0 && Math.floor(frame/5)%2===0) ctx.globalAlpha = .5;
+
+    // flame
+    const flame = 22 + Math.sin(frame*.4)*7;
+    const fg = ctx.createLinearGradient(0,30,0,58);
+    fg.addColorStop(0,"#ffffff");
+    fg.addColorStop(.35,"#ff79ff");
+    fg.addColorStop(1,"rgba(150,0,255,0)");
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.moveTo(-11,26);
+    ctx.lineTo(0,flame+32);
+    ctx.lineTo(11,26);
+    ctx.closePath();
+    ctx.fill();
+
+    // body
+    ctx.shadowColor = "#c64cff";
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = "#8328ff";
+    ctx.beginPath();
+    ctx.moveTo(0,-34);
+    ctx.quadraticCurveTo(24,-12,17,25);
+    ctx.lineTo(-17,25);
+    ctx.quadraticCurveTo(-24,-12,0,-34);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#e6c4ff";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // window / logo panel
+    ctx.fillStyle = "#2c075d";
+    ctx.fillRect(-13,-7,26,22);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-13,-7,26,22);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "900 18px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("J",0,5);
+
+    // fins
+    ctx.fillStyle = "#b94cff";
+    ctx.beginPath();
+    ctx.moveTo(-16,18);
+    ctx.lineTo(-33,34);
+    ctx.lineTo(-12,29);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(16,18);
+    ctx.lineTo(33,34);
+    ctx.lineTo(12,29);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawBullet(b){
+    ctx.save();
+    ctx.translate(b.x,b.y);
+    ctx.shadowColor = "#ff6bff";
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.arc(0,0,b.r*.75,0,Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "#d64cff";
+    ctx.beginPath();
+    ctx.arc(0,0,b.r,0,Math.PI*2);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawHud(){
+    ctx.save();
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowColor = "#9d42ff";
+    ctx.shadowBlur = 12;
+    ctx.font = "900 28px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("LEVEL " + level, 24, 44);
+
+    ctx.font = "900 22px Arial";
+    ctx.fillStyle = "#ffd33d";
+    ctx.fillText("JAY " + score, 24, 78);
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("BEST " + best, innerWidth-24, 44);
+
+    ctx.fillStyle = "#ff7cff";
+    ctx.fillText("❤ " + lives, innerWidth-24, 78);
+    ctx.restore();
+  }
+
+  function update(){
+    frame++;
+    angle += dir * (baseSpeed + level * 0.0018);
+
+    if(invincible > 0) invincible--;
+
+    const shootDelay = Math.max(32, 86 - level*6);
+    if(frame % shootDelay === 0) spawnBullet();
+
+    const x = playerX();
+    const y = playerY();
+
+    let remaining = 0;
+    coins.forEach(c=>{
+      if(c.got) return;
+      const cx = CX + Math.cos(c.a) * orbitR;
+      const cy = CY + Math.sin(c.a) * orbitR;
+      if(dist(x,y,cx,cy) < 34){
+        c.got = true;
+        score += 10;
+        spawnParticles(cx,cy,"#ffd33d",18,4);
+        if(score > best){
+          best = score;
+          localStorage.setItem("jay_corsairs_best", String(best));
+        }
+      }else{
+        remaining++;
+      }
+    });
+
+    if(remaining === 0){
+      level++;
+      baseSpeed += .002;
+      spawnParticles(CX,CY,"#c64cff",55,6);
+      makeLevel();
+    }
+
+    bullets.forEach(b=>{
+      b.x += b.vx;
+      b.y += b.vy;
+      b.life--;
+    });
+
+    bullets = bullets.filter(b=>{
+      const onScreen = b.x>-80 && b.x<innerWidth+80 && b.y>-80 && b.y<innerHeight+80 && b.life>0;
+      if(onScreen && invincible<=0 && dist(x,y,b.x,b.y) < 28 + b.r){
+        lives--;
+        invincible = 90;
+        spawnParticles(x,y,"#ff4cff",32,6);
+        if(lives <= 0) endGame();
+        return false;
+      }
+      return onScreen;
+    });
+
+    particles.forEach(p=>{
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vx *= .97;
+      p.vy *= .97;
+      p.life--;
+    });
+    particles = particles.filter(p=>p.life>0);
+  }
+
+  function drawParticles(){
+    particles.forEach(p=>{
+      ctx.globalAlpha = Math.max(0,p.life/40);
+      ctx.fillStyle = p.color;
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.shadowBlur = 0;
+    });
+  }
+
+  function endGame(){
+    running = false;
+    gameOver = true;
+    menu.style.display = "flex";
+    menu.innerHTML = `
+      <div class="card">
+        <h1>GAME OVER</h1>
+        <p>You collected <b>${score}</b> JAY coins.<br>Reached <b>Level ${level}</b>.<br>Best score: <b>${best}</b></p>
+        <button onclick="location.reload()">PLAY AGAIN</button>
+      </div>
+    `;
+  }
+
+  function loop(){
+    drawBackground();
+    drawOrbit();
+    coins.forEach(drawCoin);
+    drawCenterTurret();
+    bullets.forEach(drawBullet);
+    drawRocket();
+    drawParticles();
+    drawHud();
+
+    if(running) update();
+    requestAnimationFrame(loop);
+  }
+
+  addEventListener("resize", resize);
+  resize();
+  loop();
+})();
+</script>
+</body>
+</html>

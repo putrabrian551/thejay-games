@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Fruit Slasher</title>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0c10;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+        
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #2c3e50 0%, #0f171e 100%);
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #scoreBoard {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(211, 84, 0, 0.25), rgba(39, 174, 96, 0.15));
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            padding: 12px 25px;
+            border-radius: 16px;
+            min-width: 110px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #scoreLabel {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #bdc3c7;
+            margin-bottom: 2px;
+            font-weight: bold;
+        }
+
+        #scoreVal {
+            font-size: 34px;
+            font-weight: 900;
+            color: #ffffff;
+            font-family: monospace;
+        }
+        
+        #healthContainer {
+            position: absolute;
+            top: 32px;
+            right: 20px;
+            width: 160px;
+            height: 16px;
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            overflow: hidden;
+            z-index: 10;
+        }
+        
+        #healthBar {
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, #2ecc71, #27ae60);
+            transition: width 0.2s ease;
+        }
+
+        @media (max-width: 600px) {
+            #scoreBoard { top: 10px; left: 10px; padding: 6px 14px; min-width: 70px; border-radius: 10px; }
+            #scoreLabel { font-size: 9px; }
+            #scoreVal { font-size: 22px; }
+            #healthContainer { top: 18px; right: 10px; width: 100px; height: 12px; }
+        }
+        
+        .screen {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(11, 12, 16, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+        }
+
+        #gameOverScreen { display: none; }
+        
+        .title {
+            color: #f1c40f;
+            font-size: 48px;
+            font-weight: 900;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+            text-align: center;
+            text-shadow: 0 4px 15px rgba(241, 196, 15, 0.3);
+        }
+
+        @media (max-width: 600px) { .title { font-size: 32px; margin-bottom: 20px; } }
+
+        .btn-group { display: flex; flex-direction: column; gap: 15px; width: 200px; }
+        
+        .menu-btn {
+            padding: 14px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-easy { background: linear-gradient(135deg, #2ecc71, #27ae60); box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3); }
+        .btn-medium { background: linear-gradient(135deg, #f1c40f, #d35400); box-shadow: 0 4px 15px rgba(241, 196, 15, 0.3); }
+        .btn-hard { background: linear-gradient(135deg, #e74c3c, #c0392b); box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); }
+        .menu-btn:hover { transform: scale(1.05); }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <div id="mainMenu" class="screen">
+        <div class="title">FRUIT SLASHER</div>
+        <p style="color: #aaa; margin-bottom: 20px; font-size: 16px;">Select Difficulty:</p>
+        <div class="btn-group">
+            <button class="menu-btn btn-easy" onclick="startGame('easy')">Easy</button>
+            <button class="menu-btn btn-medium" onclick="startGame('medium')">Medium</button>
+            <button class="menu-btn btn-hard" onclick="startGame('hard')">Hard</button>
+        </div>
+    </div>
+
+    <div id="scoreBoard">
+        <div id="scoreLabel">SCORE</div>
+        <div id="scoreVal">0</div>
+    </div>
+
+    <div id="healthContainer">
+        <div id="healthBar"></div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="gameOverScreen" class="screen">
+        <h1 style="color: #e74c3c; font-size: 42px; margin-bottom: 5px; font-weight: 900; letter-spacing: 2px;">GAME OVER</h1>
+        <p style="font-size: 18px; margin-bottom: 30px; color: #aaa;">Final Score: <span id="finalScore" style="color: #fff; font-weight: bold; font-size: 22px;">0</span></p>
+        <button class="menu-btn btn-easy" style="width: 200px;" onclick="backToMenu()">MAIN MENU</button>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const scoreVal = document.getElementById('scoreVal');
+const healthBar = document.getElementById('healthBar');
+const mainMenu = document.getElementById('mainMenu');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const finalScore = document.getElementById('finalScore');
+
+let score = 0;
+let hp = 100;
+let gameOver = true;
+let objects = [];
+let particles = [];
+let flashAlpha = 0;
+let isDragging = false;
+let bladeTrail = [];
+
+// Adjusted bounce speed multiplier settings
+let currentDifficulty = { speedMin: 12, speedMax: 15, bombChance: 0.22, missPenalty: 10 };
+
+const fruitTemplates = [
+    {
+        name: 'watermelon', radius: 46, outerColor: '#27ae60', innerColor: '#e74c3c', coreColor: '#c0392b',
+        drawSkin: (ctx, r) => {
+            ctx.fillStyle = '#1e3f20'; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#142915'; ctx.lineWidth = 4;
+            for(let i = -r; i <= r; i += 12) {
+                ctx.beginPath();
+                for(let y = -r; y <= r; y += 5) {
+                    let xOffset = Math.sin(y * 0.1) * 6;
+                    let dist = Math.sqrt((i+xOffset)*(i+xOffset) + y*y);
+                    if(dist < r) {
+                        if(y === -r) ctx.moveTo(i + xOffset, y);
+                        else ctx.lineTo(i + xOffset, y);
+                    }
+                }
+                ctx.stroke();
+            }
+        },
+        drawDetails: (ctx, r) => {
+            ctx.fillStyle = '#2c3e50';
+            for(let a = -1.2; a <= 1.2; a += 0.4) {
+                if(Math.abs(a) < 0.1) continue;
+                ctx.beginPath(); ctx.arc(Math.cos(a)*(r*0.5), Math.sin(a)*(r*0.5), r*0.06, 0, Math.PI*2); ctx.fill();
+            }
+        }
+    },
+    {
+        name: 'orange', radius: 36, outerColor: '#d35400', innerColor: '#f39c12', coreColor: '#f1c40f',
+        drawSkin: (ctx, r) => {
+            let grad = ctx.createRadialGradient(-r*0.2, -r*0.2, 2, 0, 0, r);
+            grad.addColorStop(0, '#f39c12'); grad.addColorStop(1, '#d35400');
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = 'rgba(0,0,0,0.08)';
+            for(let i = 0; i < 40; i++) {
+                let angle = Math.random() * Math.PI * 2; let dist = Math.random() * (r - 4);
+                ctx.fillRect(Math.cos(angle)*dist, Math.sin(angle)*dist, 1.5, 1.5);
+            }
+            ctx.fillStyle = '#5c3d11'; ctx.fillRect(-2, -r-1, 4, 4);
+        },
+        drawDetails: (ctx, r) => {
+            ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.5;
+            for (let i = 0; i < 8; i++) {
+                ctx.beginPath(); ctx.moveTo(0, 0);
+                let angle = (i * Math.PI) / 4;
+                ctx.lineTo(Math.cos(angle)*(r*0.85), Math.sin(angle)*(r*0.85)); ctx.stroke();
+            }
+        }
+    },
+    {
+        name: 'durian', radius: 44, outerColor: '#8c7e4b', innerColor: '#f1c40f', coreColor: '#feffa3',
+        drawSkin: (ctx, r) => {
+            ctx.fillStyle = '#615631'; ctx.beginPath(); ctx.arc(0, 0, r - 5, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#8c7e4b'; let totalSpikes = 32; ctx.beginPath();
+            for(let i = 0; i < totalSpikes; i++) {
+                let angle = (i / totalSpikes) * Math.PI * 2;
+                let nextAngle = ((i + 0.5) / totalSpikes) * Math.PI * 2;
+                let tipAngle = ((i + 0.25) / totalSpikes) * Math.PI * 2;
+                ctx.lineTo(Math.cos(angle)*r, Math.sin(angle)*r);
+                ctx.lineTo(Math.cos(tipAngle)*(r + 8), Math.sin(tipAngle)*(r + 8));
+                ctx.lineTo(Math.cos(nextAngle)*r, Math.sin(nextAngle)*r);
+            }
+            ctx.fill(); ctx.closePath();
+            ctx.fillStyle = '#41371b'; ctx.fillRect(-4, -r-6, 8, 12);
+        },
+        drawDetails: (ctx, r) => {
+            ctx.fillStyle = '#8c7e4b'; ctx.beginPath(); ctx.arc(0,0, r, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#f1c40f';
+            for(let i = -1; i <= 1; i += 2) {
+                ctx.beginPath(); ctx.ellipse(i*12, 0, 10, 18, 0, 0, Math.PI*2); ctx.fill();
+            }
+        }
+    }
+];
+
+function resizeCanvas() {
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+class GameObject {
+    constructor() {
+        const isBomb = Math.random() < currentDifficulty.bombChance;
+        const scale = canvas.width < 500 ? 0.85 : 1.15;
+
+        if (isBomb) {
+            this.type = 'bomb';
+            this.radius = 28 * scale;
+        } else {
+            this.type = 'fruit';
+            this.template = fruitTemplates[Math.floor(Math.random() * fruitTemplates.length)];
+            this.radius = this.template.radius * scale;
+        }
+
+        this.x = Math.random() * (canvas.width - this.radius * 4) + this.radius * 2;
+        this.y = canvas.height + 50;
+        this.vx = (canvas.width / 2 - this.x) * 0.015 + (Math.random() * 4 - 2);
+        
+        // --- DESKTOP HIGH BOUNCE FORMULA FIX ---
+        // Using a more powerful multiplier constant to counter the high gravity of monitor screens
+        let speedFactor = Math.random() * (currentDifficulty.speedMax - currentDifficulty.speedMin) + currentDifficulty.speedMin;
+        this.vy = -(canvas.height * 0.0022 * speedFactor); 
+        this.gravity = canvas.height * 0.00062; // Gravity adjusted so the fall curve remains aesthetically curved
+        
+        this.sliced = false;
+        this.splitX1 = 0; this.splitX2 = 0; this.splitY = 0; this.angle = 0;
+        this.rotSpeed = Math.random() * 0.04 - 0.02;
+        this.currentAngle = Math.random() * Math.PI;
+        this.fuseTick = 0;
+    }
+
+    update() {
+        this.vy += this.gravity; this.x += this.vx; this.y += this.vy;
+        this.currentAngle += this.rotSpeed; this.fuseTick++;
+    }
+
+    draw() {
+        ctx.save();
+        if (this.type === 'fruit') {
+            const t = this.template;
+            if (!this.sliced) {
+                ctx.translate(this.x, this.y); ctx.rotate(this.currentAngle);
+                ctx.save(); t.drawSkin(ctx, this.radius); ctx.restore();
+            } else {
+                ctx.translate(this.x, this.y);
+                let gradIn = ctx.createRadialGradient(0, 0, 0, 0, 0, this.radius);
+                gradIn.addColorStop(0, t.coreColor); gradIn.addColorStop(0.65, t.innerColor); gradIn.addColorStop(0.9, '#fffefe'); gradIn.addColorStop(1, t.outerColor);
+                
+                ctx.save(); ctx.translate(-15 + this.splitX1, this.splitY); ctx.rotate(-this.angle);
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, Math.PI / 2, (Math.PI * 3) / 2); ctx.fillStyle = gradIn; ctx.fill(); t.drawDetails(ctx, this.radius); ctx.restore();
+
+                ctx.save(); ctx.translate(15 + this.splitX2, this.splitY); ctx.rotate(this.angle);
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, (Math.PI * 3) / 2, Math.PI / 2); ctx.fillStyle = gradIn; ctx.fill(); t.drawDetails(ctx, this.radius); ctx.restore();
+                this.splitX1 -= 4; this.splitX2 += 4; this.splitY += 3; this.angle += 0.08;
+            }
+        } else if (this.type === 'bomb') {
+            ctx.translate(this.x, this.y);
+            ctx.beginPath(); ctx.moveTo(0, -this.radius); ctx.quadraticCurveTo(15, -this.radius - 12, 10, -this.radius - 22); ctx.strokeStyle = '#95a5a6'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.beginPath(); let sparkGrad = ctx.createRadialGradient(10, -this.radius - 22, 0, 10, -this.radius - 22, 10); sparkGrad.addColorStop(0, '#ffffff'); sparkGrad.addColorStop(0.3, '#f1c40f'); sparkGrad.addColorStop(1, 'rgba(230, 126, 34, 0)'); ctx.fillStyle = sparkGrad; ctx.arc(10, -this.radius - 22, 12, 0, Math.PI * 2); ctx.fill();
+            let bombGrad = ctx.createRadialGradient(-this.radius*0.3, -this.radius*0.3, 2, 0, 0, this.radius); bombGrad.addColorStop(0, '#535c68'); bombGrad.addColorStop(0.4, '#2c3e50'); bombGrad.addColorStop(1, '#13171c'); ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI * 2); ctx.fillStyle = bombGrad; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 2; ctx.stroke();
+        }
+        ctx.restore();
+    }
+}
+
+class Particle {
+    constructor(x, y, type, targetColor = '#ff4757') {
+        this.x = x; this.y = y; this.type = type;
+        this.alpha = 1;
+        this.decay = Math.random() * 0.02 + 0.015;
+
+        let angle = Math.random() * Math.PI * 2;
+        let speed = Math.random() * (type === 'fire' ? 14 : 5) + 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.friction = type === 'fire' ? 0.92 : 0.98;
+
+        if (this.type === 'fire') {
+            this.radius = Math.random() * 12 + 8;
+            this.life = 0;
+        } else {
+            this.radius = Math.random() * 3 + 2;
+            this.color = targetColor;
+        }
+    }
+
+    update() {
+        this.vx *= this.friction; this.vy *= this.friction;
+        this.x += this.vx; this.y += this.vy;
+        
+        if (this.type === 'fire') {
+            this.life += 0.04; this.alpha -= this.decay;
+            if (this.life < 0.3) this.radius += 0.4;
+            else this.radius -= 0.3;
+            if (this.radius < 0.5) this.radius = 0.5;
+        } else {
+            this.alpha -= 0.035;
+        }
+    }
+
+    draw() {
+        if (this.alpha <= 0) return;
+        ctx.save(); ctx.globalAlpha = this.alpha;
+        
+        if (this.type === 'fire') {
+            let r = 255, g = 255, b = 255;
+            if (this.life > 0.1) { g = 200; b = 50; }
+            if (this.life > 0.3) { g = 100; b = 0; }
+            if (this.life > 0.5) { r = 180; g = 30; }
+            if (this.life > 0.7) { r = 60; g = 60; b = 60; }
+
+            let grad = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+            grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 1)`);
+            grad.addColorStop(0.4, `rgba(${r}, ${g*0.6}, ${b*0.2}, 0.8)`);
+            grad.addColorStop(1, `rgba(${r*0.3}, 0, 0, 0)`);
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = grad; ctx.fill();
+        } else {
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fillStyle = this.color; ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+function getRawCursorPosition(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+        x: ((clientX - rect.left) / rect.width) * canvas.width,
+        y: ((clientY - rect.top) / rect.height) * canvas.height
+    };
+}
+
+function checkSlice(cursorPosition) {
+    if (gameOver) return;
+    objects.forEach(obj => {
+        if (obj.sliced) return;
+        let dx = cursorPosition.x - obj.x; let dy = cursorPosition.y - obj.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < (obj.radius + 25)) {
+            obj.sliced = true;
+            if (obj.type === 'fruit') {
+                score += 10; scoreVal.textContent = score;
+                for (let i = 0; i < 16; i++) particles.push(new Particle(obj.x, obj.y, 'juice', obj.template.innerColor));
+            } else if (obj.type === 'bomb') {
+                flashAlpha = 0.9; hp -= 34;
+                if (hp < 0) hp = 0;
+                updateHealthBar();
+                for (let i = 0; i < 45; i++) particles.push(new Particle(obj.x, obj.y, 'fire'));
+                if (hp <= 0) endGame();
+            }
+        }
+    });
+}
+
+function updateHealthBar() {
+    healthBar.style.width = hp + '%';
+    if (hp > 60) healthBar.style.background = 'linear-gradient(90deg, #2ecc71, #27ae60)';
+    else if (hp > 30) healthBar.style.background = 'linear-gradient(90deg, #f1c40f, #d35400)';
+    else healthBar.style.background = 'linear-gradient(90deg, #e74c3c, #c0392b)';
+}
+
+function startGame(level) {
+    // Difficulty settings adjusted with the new curve
+    if (level === 'easy') currentDifficulty = { speedMin: 11, speedMax: 13, bombChance: 0.15, missPenalty: 5 };
+    else if (level === 'medium') currentDifficulty = { speedMin: 14, speedMax: 16, bombChance: 0.23, missPenalty: 10 };
+    else if (level === 'hard') currentDifficulty = { speedMin: 17, speedMax: 20, bombChance: 0.35, missPenalty: 15 };
+
+    score = 0; hp = 100; gameOver = false;
+    objects = []; particles = []; bladeTrail = []; flashAlpha = 0;
+    scoreVal.textContent = score; updateHealthBar();
+    mainMenu.style.display = 'none'; gameOverScreen.style.display = 'none';
+}
+
+function endGame() { gameOver = true; finalScore.textContent = score; gameOverScreen.style.display = 'flex'; }
+function backToMenu() { gameOverScreen.style.display = 'none'; mainMenu.style.display = 'flex'; }
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (bladeTrail.length > 0) bladeTrail.shift();
+
+    if (!gameOver && Math.random() < 0.026) {
+        objects.push(new GameObject());
+    }
+
+    for (let i = objects.length - 1; i >= 0; i--) {
+        let obj = objects[i]; obj.update(); obj.draw();
+        if (obj.y > canvas.height + 60 && obj.vy > 0) {
+            if (obj.type === 'fruit' && !obj.sliced && !gameOver) {
+                hp -= currentDifficulty.missPenalty; if (hp < 0) hp = 0;
+                updateHealthBar(); if (hp <= 0) endGame();
+            }
+            objects.splice(i, 1);
+        }
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        let p = particles[i]; p.update(); p.draw();
+        if (p.alpha <= 0 || (p.type === 'fire' && p.radius <= 0.5)) {
+            particles.splice(i, 1);
+        }
+    }
+
+    if (bladeTrail.length >= 2) {
+        ctx.save(); ctx.beginPath(); ctx.moveTo(bladeTrail[0].x, bladeTrail[0].y);
+        for (let i = 1; i < bladeTrail.length; i++) { ctx.lineTo(bladeTrail[i].x, bladeTrail[i].y); }
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.shadowBlur = 12; ctx.shadowColor = '#00d2d3'; ctx.stroke(); ctx.restore();
+    }
+
+    if (flashAlpha > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashAlpha})`; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        flashAlpha -= 0.07;
+    }
+    requestAnimationFrame(gameLoop);
+}
+
+// INPUT LISTENERS
+window.addEventListener('mousedown', (e) => {
+    if (gameOver) return; isDragging = true; bladeTrail = [];
+    let pos = getRawCursorPosition(e); bladeTrail.push(pos); checkSlice(pos);
+});
+window.addEventListener('mousemove', (e) => {
+    if (!isDragging || gameOver) return;
+    let pos = getRawCursorPosition(e); bladeTrail.push(pos);
+    if (bladeTrail.length > 7) bladeTrail.shift();
+    checkSlice(pos);
+});
+window.addEventListener('mouseup', () => { isDragging = false; bladeTrail = []; });
+
+window.addEventListener('touchstart', (e) => {
+    if (gameOver) return; isDragging = true;
+    let pos = getRawCursorPosition(e); bladeTrail.push(pos); checkSlice(pos);
+});
+window.addEventListener('touchmove', (e) => {
+    if (!isDragging || gameOver) return;
+    let pos = getRawCursorPosition(e); bladeTrail.push(pos); checkSlice(pos);
+});
+window.addEventListener('touchend', () => { isDragging = false; });
+
+gameLoop();
+</script>
+</body>
+</html>
