@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>JAY Knife Hit</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{overflow:hidden;background:#050814;font-family:Arial,sans-serif;color:white}
+canvas{display:block}
+.screen{
+position:fixed;inset:0;display:flex;flex-direction:column;
+justify-content:center;align-items:center;text-align:center;
+padding:20px;background:radial-gradient(circle,#12244a,#050814);
+z-index:20
+}
+.hidden{display:none}
+h1{
+font-size:min(80px,12vw);
+color:#00e5ff;
+
+text-shadow:
+0 0 3px #00e5ff,
+0 0 6px #00e5ff;
+}
+p{margin:6px 0;max-width:600px}
+.btn{
+margin-top:18px;padding:14px 32px;border:none;border-radius:14px;
+font-size:20px;font-weight:bold;cursor:pointer
+}
+#startBtn{background:#00e5ff}
+#hud{
+position:absolute;
+
+top:15px;
+left:15px;
+right:15px;
+
+display:flex;
+
+justify-content:space-between;
+
+align-items:center;
+
+font-size:min(22px,4.5vw);
+
+z-index:100;
+}
+.card{
+
+    min-width:140px;
+
+    padding:12px 18px;
+
+    background:rgba(10,15,40,.65);
+
+    border:2px solid rgba(212,0,255,.7);
+
+    border-radius:18px;
+
+    color:white;
+
+    font-weight:bold;
+
+    text-align:center;
+
+    backdrop-filter:blur(8px);
+
+    box-shadow:
+    0 0 10px #d400ff,
+    0 0 25px rgba(212,0,255,.5),
+    inset 0 0 12px rgba(212,0,255,.2);
+
+    transition:.3s;
+}
+</style>
+</head>
+<body>
+
+<div id="menu" class="screen">
+
+<h1>⚔️ JAY KNIFE HIT ⚔️</h1>
+
+<p>🏆 CHALLENGE YOUR REFLEX</p>
+<p>🔥 Hit the spinning target</p>
+<p>💎 Reach Level 5</p>
+<p>👑 Become The Knife King</p>
+
+<button id="startBtn" class="btn">
+▶ PLAY NOW
+</button>
+
+</div>
+
+<div id="hud" class="hidden">
+<div class="card" id="score">Score: 0</div>
+<div class="card" id="level">Level: 1</div>
+<div class="card" id="high">High Score: 0</div>
+</div>
+
+<div id="gameOver" class="screen hidden">
+<h1>GAME OVER</h1>
+<h2 id="finalScore"></h2>
+<button class="btn" onclick="startGame()">PLAY AGAIN</button>
+</div>
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+
+function resize(){
+canvas.width=innerWidth;
+canvas.height=innerHeight;
+}
+resize();
+addEventListener("resize",resize);
+
+let score=0;
+let level=1;
+let highScore=parseInt(localStorage.getItem("jayKnifeHigh")||0);
+
+let targetRadius;
+let targetAngle=0;
+let rotateSpeed = 0.02;
+let knives=[];
+let flyingKnife=null;
+let particles=[];
+let stars=[];
+let running=false;
+const throwSound = new Audio("https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3");
+const hitSound = new Audio("https://assets.mixkit.co/active_storage/sfx/270/270-preview.mp3");
+const gameOverSound = new Audio("https://assets.mixkit.co/active_storage/sfx/212/212-preview.mp3");
+
+const scoreEl=document.getElementById("score");
+const highEl=document.getElementById("high");
+const levelEl=document.getElementById("level");
+scoreEl.style.color="#FFD700";
+levelEl.style.color="#d400ff";
+highEl.style.color="#00e5ff";
+
+function updateHud(){
+    scoreEl.textContent = "Score: " + score;
+    levelEl.textContent = "Level: " + level;
+    highEl.textContent = "High Score: " + highScore;
+}
+updateHud();
+
+function startGame(){
+score=0;
+rotateSpeed=0.02;
+targetAngle=0;
+knives=[];
+flyingKnife=null;
+running=true;
+
+document.getElementById("menu").classList.add("hidden");
+document.getElementById("gameOver").classList.add("hidden");
+document.getElementById("hud").classList.remove("hidden");
+
+updateHud();
+}
+
+const startBtn = document.getElementById("startBtn");
+
+startBtn.addEventListener("click", startGame);
+
+startBtn.addEventListener("touchend", function(e){
+    e.preventDefault();
+    startGame();
+});
+function throwKnife(){
+if(!running || flyingKnife) return;
+
+throwSound.currentTime = 0;
+throwSound.play();
+
+flyingKnife={y:canvas.height-140};
+}
+
+canvas.addEventListener("click",()=>{
+
+    if(!running) return;
+
+    throwKnife();
+
+});
+canvas.addEventListener("touchstart",(e)=>{
+
+    if(!running) return;
+
+    e.preventDefault();
+
+    throwKnife();
+
+},{passive:false});
+
+function endGame(){
+    gameOverSound.currentTime = 0;
+gameOverSound.play();
+running=false;
+
+if(score>highScore){
+highScore=score;
+localStorage.setItem("jayKnifeHigh",highScore);
+}
+
+updateHud();
+
+document.getElementById("finalScore").textContent=
+"Final Score: "+score;
+
+document.getElementById("gameOver").classList.remove("hidden");
+}
+
+function drawKnife(x,y){
+
+    // Glow ungu
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#d400ff";
+
+    // Bilah pisau
+    ctx.strokeStyle = "#d400ff";
+    ctx.lineWidth = 6;
+
+    ctx.beginPath();
+    ctx.moveTo(x,y);
+    ctx.lineTo(x,y+70);
+    ctx.stroke();
+
+    // Gagang pisau
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = "#7a00ff";
+
+    ctx.fillRect(
+        x-10,
+        y+60,
+        20,
+        12
+    );
+
+    // Ujung pisau
+    ctx.fillStyle = "#ff66ff";
+
+    ctx.beginPath();
+    ctx.arc(
+        x,
+        y,
+        4,
+        0,
+        Math.PI*2
+    );
+    ctx.fill();
+
+    // Reset shadow
+    ctx.shadowBlur = 0;
+}
+class Particle{
+
+    constructor(x,y){
+
+        this.x=x;
+        this.y=y;
+
+        this.vx=(Math.random()-0.5)*6;
+        this.vy=(Math.random()-0.5)*6;
+
+        this.life=30;
+    }
+
+    update(){
+
+        this.x+=this.vx;
+        this.y+=this.vy;
+
+        this.life--;
+
+        return this.life>0;
+    }
+
+    draw(){
+
+        ctx.fillStyle="#d400ff";
+
+        ctx.shadowBlur=15;
+        ctx.shadowColor="#d400ff";
+
+        ctx.beginPath();
+        ctx.arc(
+            this.x,
+            this.y,
+            3,
+            0,
+            Math.PI*2
+        );
+        ctx.fill();
+
+        ctx.shadowBlur=0;
+    }
+}
+class Star{
+
+    constructor(){
+
+        this.x=Math.random()*canvas.width;
+        this.y=Math.random()*canvas.height;
+
+        this.size=Math.random()*3+1;
+
+        this.speed=Math.random()*0.5+0.2;
+    }
+    
+
+    update(){
+
+        this.y+=this.speed;
+
+        if(this.y>canvas.height){
+
+            this.y=0;
+
+            this.x=Math.random()*canvas.width;
+        }
+    }
+
+    draw(){
+
+        let colors=[
+"#ffffff",
+"#d400ff",
+"#00e5ff"
+];
+
+ctx.fillStyle=
+colors[
+Math.floor(
+Math.random()*colors.length
+)
+];
+
+        ctx.beginPath();
+
+        ctx.arc(
+            this.x,
+            this.y,
+            this.size,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+    
+}
+for(let i=0;i<80;i++){
+
+    stars.push(
+        new Star()
+    );
+
+}
+
+function loop(){
+requestAnimationFrame(loop);
+
+ctx.fillStyle="#050814";
+ctx.fillRect(0,0,canvas.width,canvas.height);
+stars.forEach(star=>{
+
+    star.update();
+
+    star.draw();
+
+});
+
+const cx=canvas.width/2;
+const cy=canvas.height*0.3;
+
+targetRadius=Math.min(canvas.width,canvas.height)*0.20;
+
+targetAngle += rotateSpeed;
+
+ctx.save();
+ctx.translate(cx,cy);
+ctx.rotate(targetAngle);
+
+ctx.shadowBlur=30;
+ctx.shadowColor="#00e5ff";
+
+let targetColor = "#00e5ff";
+
+if(level >= 2) targetColor = "#d400ff";
+if(level >= 3) targetColor = "#ff3366";
+if(level >= 4) targetColor = "#FFD700";
+if(level >= 5) targetColor = "#00ff66";
+
+ctx.shadowBlur = 30;
+ctx.shadowColor = targetColor;
+
+ctx.fillStyle = targetColor;
+
+ctx.beginPath();
+ctx.arc(0,0,targetRadius,0,Math.PI*2);
+ctx.fill();
+
+ctx.fillStyle="#111";
+ctx.beginPath();
+ctx.arc(0,0,targetRadius*0.6,0,Math.PI*2);
+ctx.fill();
+ctx.fillStyle = "#d400ff";
+
+ctx.shadowBlur = 20;
+ctx.shadowColor = "#d400ff";
+ctx.font = `bold ${targetRadius * 0.45}px Arial`;
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+ctx.fillText("JAY", 0, 0);
+
+ctx.restore();
+
+particles =
+particles.filter(
+    p=>p.update()
+);
+
+particles.forEach(
+    p=>p.draw()
+);
+for(let angle of knives){
+let a=angle+targetAngle;
+
+let x=cx+Math.sin(a)*targetRadius;
+let y=cy+Math.cos(a)*targetRadius;
+
+drawKnife(x,y);
+}
+
+if(flyingKnife){
+
+    ctx.beginPath();
+
+    ctx.moveTo(cx,flyingKnife.y+80);
+
+    ctx.lineTo(cx,flyingKnife.y+10);
+
+    let grad = ctx.createLinearGradient(
+    cx,
+    flyingKnife.y+80,
+    cx,
+    flyingKnife.y
+);
+
+grad.addColorStop(0,"rgba(212,0,255,0)");
+grad.addColorStop(1,"rgba(255,100,255,1)");
+
+ctx.strokeStyle = grad;
+
+    ctx.lineWidth=8;
+
+    ctx.shadowBlur=20;
+
+    ctx.shadowColor="#d400ff";
+
+    ctx.stroke();
+
+    ctx.shadowBlur=0;
+
+    drawKnife(cx,flyingKnife.y);
+
+    flyingKnife.y-=18;
+
+if(flyingKnife.y<=cy+targetRadius){
+
+let hit = false;
+
+for(let angle of knives){
+
+    let diff = Math.abs(angle - (-targetAngle));
+
+    while(diff > Math.PI){
+        diff -= Math.PI * 2;
+    }
+
+    diff = Math.abs(diff);
+
+    if(diff < 0.25){
+        hit = true;
+        break;
+    }
+}
+
+if(hit){
+endGame();
+}else{
+knives.push(-targetAngle);
+
+score += 20;
+hitSound.currentTime = 0;
+hitSound.play();
+for(let i=0;i<15;i++){
+
+    particles.push(
+        new Particle(
+            cx,
+            cy+targetRadius
+        )
+    );
+
+}
+level = Math.floor(score / 100) + 1;
+
+levelEl.textContent = "Level: " + level;
+
+if(score > highScore){
+    highScore = score;
+    localStorage.setItem("jayKnifeHigh", highScore);
+}
+
+updateHud();
+
+if(level === 1) rotateSpeed = 0.020;
+if(level === 2) rotateSpeed = 0.023;
+if(level === 3) rotateSpeed = 0.026;
+if(level === 4) rotateSpeed = 0.029;
+if(level >= 5) rotateSpeed = 0.032;
+}
+
+flyingKnife=null;
+}
+}
+}
+
+loop();
+</script>
+</body>
+</html>
