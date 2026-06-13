@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JAY SNAKE</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    margin:0;
+    background: radial-gradient(circle at top, #1f2937, #0b1020);
+    color:white;
+    text-align:center;
+    overflow:hidden;
+    font-family:Arial, sans-serif;
+}
+
+h1{
+    margin-top:15px;
+    font-size:40px;
+    color:#00ff99;
+    text-shadow:0 0 15px #00ff99;
+}
+
+.clickbait{
+    color:yellow;
+    font-weight:bold;
+    margin:10px;
+    font-size:18px;
+}
+
+.info{
+    display:flex;
+    justify-content:center;
+    gap:20px;
+    margin:10px;
+    font-size:20px;
+}
+
+
+
+#startBtn{
+    background:#c084fc;
+    color:#0b001a;
+
+    padding:12px 25px;
+    border:none;
+    border-radius:10px;
+
+    font-size:20px;
+    font-weight:bold;
+
+    box-shadow:
+        0 0 10px #c084fc,
+        0 0 25px rgba(192,132,252,0.6);
+
+    cursor:pointer;
+}
+
+.overlay{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    background:rgba(0,0,0,.7);
+    z-index: 10;
+}
+
+.gameover{
+    font-size:60px;
+    color:red;
+    text-shadow:0 0 20px red;
+}
+
+.small{
+    margin-top:10px;
+    font-size:22px;
+}
+canvas{
+    background: radial-gradient(circle at top, #c084fc, #2a0055);
+    border: 5px solid #c084fc;
+
+    border-radius: 18px;
+
+    box-shadow:
+        0 0 10px #c084fc,
+        0 0 25px #c084fc,
+        0 0 50px rgba(192,132,252,0.8),
+        0 0 80px rgba(192,132,252,0.4),
+        inset 0 0 15px rgba(192,132,252,0.3);
+
+    width: min(92vw, 500px);
+    height: auto;
+
+    touch-action: none;
+}
+</style>
+</head>
+<body>
+<h1 style="
+    color:#ffffff;
+    text-shadow:
+        0 0 10px #c084fc,
+        0 0 25px #7c3aed,
+        0 0 50px #c084fc;
+    font-size:44px;
+    letter-spacing:3px;
+">
+🐍 JAY SNAKE
+</h1>
+
+<div class="clickbait">
+👑 EAT COINS, GROW BIGGER, DOMINATE THE ARENA! 👑
+</div>
+
+<div class="info" style="
+    font-size:20px;
+    font-weight:bold;
+    color:#c084fc;
+    text-shadow:
+        0 0 10px #c084fc,
+        0 0 20px #7c3aed;
+">
+
+<div>🏆 Score: <span id="score" style="color:#ffffff;">0</span></div>
+
+<div>👑 High Score: <span id="highscore" style="color:#ffffff;">0</span></div>
+
+</div>
+
+
+<br>
+
+<canvas id="game" width="400" height="400"></canvas>
+
+<div id="overlay" class="overlay">
+   <h2 style="
+    color:#c084fc;
+    font-size:42px;
+    letter-spacing:2px;
+    text-align:center;
+
+    text-shadow:
+        0 0 10px #c084fc,
+        0 0 25px #7c3aed,
+        0 0 50px #a855f7,
+        0 0 80px rgba(192,132,252,0.8);
+">
+🐍 JAY SNAKE
+</h2>
+
+    <p class="small" style="
+    font-size:18px;
+    color:#c084fc;
+    text-shadow:0 0 10px #c084fc;
+    font-weight:bold;
+">
+▶ TAP TO START YOUR JOURNEY
+</p>
+
+    <div style="margin:10px; font-size:14px; color:#c084fc;">
+        📱 Mobile: Swipe to move <br>
+        💻 Laptop: Use Arrow Keys
+    </div>
+
+    <button id="startBtn">▶ START GAME</button>
+</div>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const coinSound = new Audio("https://actions.google.com/sounds/v1/cartoon/pop.ogg");
+const gameOverSound = new Audio("https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg");
+
+
+
+const box = 20;
+
+let snake;
+let coin;
+let score;
+let direction;
+let game;
+let running = false;
+
+const scoreEl = document.getElementById("score");
+const highEl = document.getElementById("highscore");
+const overlay = document.getElementById("overlay");
+
+let highScore = localStorage.getItem("jaySnakeHigh") || 0;
+highEl.textContent = highScore;
+
+function startGame(){
+
+
+
+    snake = [
+        {x:10*box,y:10*box}
+    ];
+
+    score = 0;
+    direction = "RIGHT";
+
+    coin = randomCoin();
+
+    scoreEl.textContent = score;
+
+    clearInterval(game);
+    game = setInterval(draw,120);
+
+    running = true;
+    overlay.style.display="none";
+}
+function randomCoin(){
+    return{
+        x:Math.floor(Math.random()*20)*box,
+        y:Math.floor(Math.random()*20)*box
+    };
+}
+
+function draw(){
+
+ctx.fillStyle="#12002b";
+ctx.fillRect(0,0,400,400);
+
+ctx.save();
+
+// glow luar
+ctx.shadowColor = "#ffd700";
+ctx.shadowBlur = 15;
+
+// badan koin
+ctx.fillStyle = "#ffd700";
+ctx.beginPath();
+ctx.arc(coin.x + 10, coin.y + 10, 9, 0, Math.PI * 2);
+ctx.fill();
+
+// highlight dalam
+ctx.shadowBlur = 0;
+ctx.fillStyle = "#fff3b0";
+ctx.beginPath();
+ctx.arc(coin.x + 7, coin.y + 7, 3, 0, Math.PI * 2);
+ctx.fill();
+
+// garis pinggir
+ctx.strokeStyle = "#ffcc00";
+ctx.lineWidth = 2;
+ctx.beginPath();
+ctx.arc(coin.x + 10, coin.y + 10, 9, 0, Math.PI * 2);
+ctx.stroke();
+
+ctx.restore();
+
+for(let i=0;i<snake.length;i++){
+
+    // pola ungu + putih
+    ctx.fillStyle = (i % 2 === 0) ? "#c084fc" : "#ffffff";
+    ctx.fillRect(snake[i].x, snake[i].y, box, box);
+
+    // garis biar rapi
+    ctx.strokeStyle = "rgba(0,0,0,0.2)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+
+    // mata hanya di kepala
+    if(i === 0){
+
+    let eyeOffsetX = 0;
+    let eyeOffsetY = 0;
+
+    if(direction === "RIGHT") eyeOffsetX = 2;
+    if(direction === "LEFT") eyeOffsetX = -2;
+    if(direction === "UP") eyeOffsetY = -2;
+    if(direction === "DOWN") eyeOffsetY = 2;
+
+    // mata putih
+    ctx.fillStyle = "white";
+
+    // kiri
+    ctx.beginPath();
+    ctx.arc(snake[i].x + 6 + eyeOffsetX, snake[i].y + 6 + eyeOffsetY, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // kanan
+    ctx.beginPath();
+    ctx.arc(snake[i].x + 14 + eyeOffsetX, snake[i].y + 6 + eyeOffsetY, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // pupil
+    ctx.fillStyle = "black";
+
+    ctx.beginPath();
+    ctx.arc(snake[i].x + 6 + eyeOffsetX, snake[i].y + 6 + eyeOffsetY, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(snake[i].x + 14 + eyeOffsetX, snake[i].y + 6 + eyeOffsetY, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+}
+}
+let headX = snake[0].x;
+let headY = snake[0].y;
+
+if(direction==="LEFT") headX -= box;
+if(direction==="UP") headY -= box;
+if(direction==="RIGHT") headX += box;
+if(direction==="DOWN") headY += box;
+
+if(headX < 0) headX = 380;
+if(headX > 380) headX = 0;
+if(headY < 0) headY = 380;
+if(headY > 380) headY = 0;
+
+let newHead = {x:headX,y:headY};
+
+for(let i=0;i<snake.length;i++){
+    if(
+        newHead.x===snake[i].x &&
+        newHead.y===snake[i].y
+    ){
+        gameOver();
+        return;
+    }
+}
+
+if(headX===coin.x && headY===coin.y){
+    score += 10;
+    scoreEl.textContent = score;
+    coinSound.currentTime = 0;
+    coinSound.play();
+    coin = randomCoin();
+    
+
+    if(score > highScore){
+        highScore = score;
+        localStorage.setItem("jaySnakeHigh",highScore);
+        highEl.textContent = highScore;
+    }
+}else{
+    snake.pop();
+}
+
+snake.unshift(newHead);
+}
+
+function gameOver(){
+    
+    clearInterval(game);
+    running=false;
+    gameOverSound.currentTime = 0;
+gameOverSound.play();
+
+    overlay.innerHTML = `
+    <div class="gameover">GAME OVER</div>
+    <div class="small">🏆 Score: ${score}</div>
+    <div class="small">👑 High Score: ${highScore}</div>
+    <button id="restartBtn" style="
+        margin-top:20px;
+        padding:12px 25px;
+        font-size:20px;
+        border:none;
+        border-radius:10px;
+        background:#00ff99;
+        cursor:pointer;
+    ">
+    MAIN LAGI
+    </button>
+    `;
+
+    overlay.style.display="flex";
+
+    document.getElementById("restartBtn").onclick = startGame;
+}
+
+document.addEventListener("keydown",e=>{
+
+if(e.key==="ArrowLeft" && direction!=="RIGHT")
+direction="LEFT";
+
+if(e.key==="ArrowUp" && direction!=="DOWN")
+direction="UP";
+
+if(e.key==="ArrowRight" && direction!=="LEFT")
+direction="RIGHT";
+
+if(e.key==="ArrowDown" && direction!=="UP")
+direction="DOWN";
+
+});
+
+let startX = 0;
+let startY = 0;
+document.getElementById("startBtn").addEventListener("click", startGame);
+
+
+canvas.addEventListener("touchstart", (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+});
+
+
+canvas.addEventListener("touchend", (e) => {
+    
+
+    let endX = e.changedTouches[0].clientX;
+    let endY = e.changedTouches[0].clientY;
+
+    let dx = endX - startX;
+    let dy = endY - startY;
+
+    if (Math.abs(dx) > Math.abs(dy)) {
+
+        if (Math.abs(dx) > 20) {
+            if (dx > 0 && direction !== "LEFT") direction = "RIGHT";
+            else if (dx < 0 && direction !== "RIGHT") direction = "LEFT";
+        }
+
+    } else {
+
+        if (Math.abs(dy) > 20) {
+            if (dy > 0 && direction !== "UP") direction = "DOWN";
+            else if (dy < 0 && direction !== "DOWN") direction = "UP";
+        }
+    }
+
+});
+
+
+
+
+
+</script>
+
+</body>
+</html>

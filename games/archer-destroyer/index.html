@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCHER DESTROYER</title>
+
+<style>
+body{
+overflow:hidden;
+background: linear-gradient(
+    to bottom,
+    #2b1055 0%,
+    #7597de 50%,
+    #ff7e5f 100%
+);
+}
+
+canvas{
+display:block;
+touch-action:none;
+background: transparent;
+}
+
+#ui{
+position:absolute;
+top:10px;
+left:10px;
+color:white;
+font-size:22px;
+font-weight:bold;
+text-shadow:2px 2px 5px #000;
+z-index:10;
+}
+
+#startScreen{
+position:fixed;
+inset:0;
+background:linear-gradient(135deg,#ff7b00,#ff0000);
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+text-align:center;
+color:white;
+z-index:1000;
+}
+
+#startScreen h1{
+font-size:70px;
+text-shadow:4px 4px 8px black;
+}
+
+#startScreen p{
+font-size:24px;
+margin:20px;
+}
+
+#startScreen button{
+padding:15px 35px;
+font-size:24px;
+border:none;
+border-radius:12px;
+cursor:pointer;
+font-weight:bold;
+}
+
+#gameover{
+position:fixed;
+inset:0;
+background:rgba(0,0,0,0.85);
+display:none;
+justify-content:center;
+align-items:center;
+z-index:1000;
+}
+
+.gamebox{
+background:linear-gradient(135deg,#ff7b00,#ff0000);
+padding:30px;
+border-radius:20px;
+text-align:center;
+color:white;
+box-shadow:0 0 30px gold;
+animation:pop .4s ease;
+}
+
+.gamebox h1{
+font-size:50px;
+margin-bottom:15px;
+}
+
+.gamebox p{
+font-size:24px;
+margin:10px;
+}
+
+.gamebox button{
+padding:15px 30px;
+font-size:22px;
+border:none;
+border-radius:12px;
+cursor:pointer;
+font-weight:bold;
+}
+
+@keyframes pop{
+from{transform:scale(0);}
+to{transform:scale(1);}
+}
+
+.effectText{
+position:absolute;
+left:50%;
+top:30%;
+transform:translateX(-50%);
+font-size:42px;
+font-weight:bold;
+color:yellow;
+text-shadow:3px 3px 5px black;
+pointer-events:none;
+animation:fade 1s forwards;
+}
+
+@keyframes fade{
+0%{
+opacity:1;
+transform:translateX(-50%) scale(1);
+}
+100%{
+opacity:0;
+transform:translateX(-50%) scale(1.5);
+}
+}
+
+</style>
+</head>
+<body>
+
+<div id="ui">
+❤️ Lives:<span id="life">5</span><br>
+⭐ Score: <span id="score">0</span><br>
+🏆 Top Shoot: <span id="highscore">0</span>
+</div>
+
+<div id="startScreen">
+<h1>🏹 ARCHER DESTROYER</h1>
+<p>Destroy Every Wall!</p>
+<p>Only Legends Reach 1000 Score!</p>
+<button onclick="startGame()">PLAY GAME</button>
+</div>
+
+<div id="gameover">
+<div class="gamebox">
+<h1>💀 GAME OVER</h1>
+<p id="finalScore"></p>
+<p id="bestScore"></p>
+<p>You Almost Became the Archer King!</p>
+<button onclick="restartGame()">🏹 PLAY AGAIN</button>
+</div>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playBreakSound() {
+
+    const bufferSize = audioCtx.sampleRate * 0.12;
+
+    const buffer = audioCtx.createBuffer(
+        1,
+        bufferSize,
+        audioCtx.sampleRate
+    );
+
+    const data = buffer.getChannelData(0);
+
+    for(let i=0;i<bufferSize;i++){
+        data[i] = (Math.random()*2-1)*(1-i/bufferSize);
+    }
+
+    const noise = audioCtx.createBufferSource();
+    noise.buffer = buffer;
+
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.25;
+
+    noise.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    noise.start();
+}
+function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener("resize",resize);
+
+
+let running=false;
+
+let score=0;
+let life=5;
+
+let highscore=
+parseInt(localStorage.getItem("archerDestroyerHigh"))||0;
+
+document.getElementById("highscore").textContent=highscore;
+
+const arrows=[];
+const walls=[];
+const particles=[];
+let lastShot = 0;
+const shootDelay = 600;
+
+
+const player={
+x:80,
+y:0
+};
+
+const effects=[
+"🔥 PERFECT!",
+"⚡ LEGENDARY!",
+"🏹 GREAT SHOT!",
+"💥 WALL DESTROYED!",
+"👑 ARCHER KING!"
+];
+
+
+function startGame(){
+document.getElementById("startScreen").style.display="none";
+running=true;
+
+// 🔊 penting banget
+
+
+loop();
+}
+
+function createWall(){
+
+walls.push({
+x:canvas.width+250,
+y:Math.random()*(canvas.height-300)+150,
+w:80,
+h:150,
+hp:3
+});
+}
+
+setInterval(()=>{
+if(running){
+createWall();
+}
+},1800);
+
+function shoot(targetY){
+
+const now = Date.now();
+
+if(now - lastShot < shootDelay) return;
+
+lastShot = now;
+
+let dx = canvas.width - player.x;
+let dy = targetY - (player.y - 30);
+
+const baseVy = (targetY-(player.y-30))/100;
+
+arrows.push({
+x: player.x + 20,
+y: player.y - 30,
+vx: 8,
+vy: baseVy
+});
+
+arrows.push({
+x: player.x,
+y: player.y - 30,
+vx: 8,
+vy: baseVy
+});
+
+arrows.push({
+x: player.x - 20,
+y: player.y - 30,
+vx: 8,
+vy: baseVy
+});
+
+}
+
+canvas.addEventListener("click",e=>{
+if(running){
+shoot(e.clientY);
+}
+});
+
+canvas.addEventListener("touchstart",e=>{
+if(running){
+shoot(e.touches[0].clientY);
+}
+});
+
+function showText(text){
+    function spawnIceParticles(x, y){
+for(let i=0;i<10;i++){
+particles.push({
+x:x,
+y:y,
+vx:(Math.random()-0.5)*6,
+vy:(Math.random()-0.5)*6,
+life:30
+});
+}
+}
+
+const div=document.createElement("div");
+
+div.className="effectText";
+div.innerHTML=text;
+
+document.body.appendChild(div);
+
+setTimeout(()=>{
+div.remove();
+},1000);
+}
+
+function update(){
+
+player.y=canvas.height-100;
+
+for(let i=arrows.length-1;i>=0;i--){
+
+let a=arrows[i];
+
+a.x+=a.vx;
+a.y+=a.vy;
+
+if(a.x>canvas.width+100){
+arrows.splice(i,1);
+continue;
+}
+
+for(let j=walls.length-1;j>=0;j--){
+
+let w=walls[j];
+
+if(
+a.x > w.x-10 &&
+a.x < w.x+w.w+10 &&
+a.y > w.y-10 &&
+a.y < w.y+w.h+10
+){
+
+w.hp--;
+
+arrows.splice(i,1);
+
+if(w.hp<=0){
+
+   playBreakSound();
+
+   score+=10;
+for(let i=particles.length-1;i>=0;i--){
+
+let p = particles[i];
+
+p.x += p.vx;
+p.y += p.vy;
+p.life--;
+
+if(p.life <= 0){
+    particles.splice(i,1);
+}
+
+}
+function spawnIceParticles(x, y){
+
+for(let i=0;i<10;i++){
+
+particles.push({
+x:x,
+y:y,
+vx:(Math.random()-0.5)*6,
+vy:(Math.random()-0.5)*6,
+life:30
+});
+
+}
+
+}
+
+showText(
+effects[
+Math.floor(Math.random()*effects.length)
+]
+);
+
+if(score>highscore){
+
+highscore=score;
+
+localStorage.setItem(
+"archerDestroyerHigh",
+highscore
+);
+}
+spawnIceParticles(w.x + w.w/2, w.y + w.h/2);
+
+
+walls.splice(j,1);
+}
+
+break;
+}
+}
+}
+
+for(let i=walls.length-1;i>=0;i--){
+
+let wallSpeed = 2.5 + (score / 100);
+
+walls[i].x -= wallSpeed;
+
+if(walls[i].x<40){
+
+walls.splice(i,1);
+
+life--;
+
+if(life<=0){
+gameOver();
+}
+}
+}
+
+document.getElementById("score").textContent=score;
+document.getElementById("life").textContent=life;
+document.getElementById("highscore").textContent=highscore;
+for(let i=particles.length-1;i>=0;i--){
+let p = particles[i];
+
+p.x += p.vx;
+p.y += p.vy;
+p.life--;
+
+if(p.life <= 0){
+particles.splice(i,1);
+}
+}
+}
+
+function draw(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height);
+particles.forEach(p=>{
+ctx.fillStyle="rgba(173,216,230,0.8)";
+ctx.beginPath();
+ctx.arc(p.x,p.y,3,0,Math.PI*2);
+ctx.fill();
+});
+
+ctx.fillStyle="#8B4513";
+ctx.fillRect(
+0,
+canvas.height-80,
+canvas.width,
+80
+);
+ctx.font = "bold 28px Arial";
+ctx.textAlign = "center";
+
+// Glow ungu terang
+ctx.shadowColor = "#d400ff";
+ctx.shadowBlur = 25;
+
+ctx.fillStyle = "#ff66ff"; // purple bright
+ctx.strokeStyle = "#ffffff"; // outline putih
+ctx.lineWidth = 3;
+
+ctx.strokeText(
+"JAY NETWORK",
+canvas.width / 2,
+canvas.height - 30
+);
+
+ctx.fillText(
+"JAY NETWORK",
+canvas.width / 2,
+canvas.height - 30
+);
+
+// reset shadow
+ctx.shadowBlur = 0;
+
+ctx.fillStyle="#6b3d16";
+ctx.fillRect(player.x-10, player.y-60, 20, 60);
+
+// ===== KEPALA =====
+ctx.beginPath();
+ctx.arc(player.x, player.y-80, 18, 0, Math.PI*2);
+ctx.fillStyle="#ffe0bd";
+ctx.fill();
+let px = player.x;
+let py = player.y;
+
+// ===== SAYAP KIRI (UNGU BRIGHT) =====
+ctx.fillStyle = "#b400ff"; // ungu neon
+
+ctx.beginPath();
+ctx.moveTo(px-10, py-60);
+ctx.lineTo(px-45, py-40);
+ctx.lineTo(px-25, py-10);
+ctx.lineTo(px-10, py-40);
+ctx.closePath();
+ctx.fill();
+
+// ===== SAYAP KANAN =====
+ctx.beginPath();
+ctx.moveTo(px+10, py-60);
+ctx.lineTo(px+45, py-40);
+ctx.lineTo(px+25, py-10);
+ctx.lineTo(px+10, py-40);
+ctx.closePath();
+ctx.fill();
+
+// ===== OUTLINE biar lebih hidup =====
+ctx.strokeStyle = "#ff00ff";
+ctx.lineWidth = 2;
+
+// kiri outline
+ctx.beginPath();
+ctx.moveTo(px-10, py-60);
+ctx.lineTo(px-45, py-40);
+ctx.lineTo(px-25, py-10);
+ctx.lineTo(px-10, py-40);
+ctx.closePath();
+ctx.stroke();
+
+// kanan outline
+ctx.beginPath();
+ctx.moveTo(px+10, py-60);
+ctx.lineTo(px+45, py-40);
+ctx.lineTo(px+25, py-10);
+ctx.lineTo(px+10, py-40);
+ctx.closePath();
+ctx.stroke();
+
+
+// ===== OUTLINE biar lebih tegas =====
+ctx.strokeStyle = "#000000";
+ctx.lineWidth = 2;
+
+// outline kiri
+ctx.beginPath();
+ctx.moveTo(px-10, py-60);
+ctx.lineTo(px-45, py-40);
+ctx.lineTo(px-25, py-10);
+ctx.lineTo(px-10, py-40);
+ctx.closePath();
+ctx.stroke();
+
+// outline kanan
+ctx.beginPath();
+ctx.moveTo(px+10, py-60);
+ctx.lineTo(px+45, py-40);
+ctx.lineTo(px+25, py-10);
+ctx.lineTo(px+10, py-40);
+ctx.closePath();
+ctx.stroke();
+// ===== MATA =====
+ctx.fillStyle="#000";
+
+// mata kiri
+ctx.beginPath();
+ctx.arc(player.x-6, player.y-83, 2.5, 0, Math.PI*2);
+ctx.fill();
+
+// mata kanan
+ctx.beginPath();
+ctx.arc(player.x+6, player.y-83, 2.5, 0, Math.PI*2);
+ctx.fill();
+
+// ===== MULUT =====
+ctx.strokeStyle="#000";
+ctx.lineWidth=2;
+
+ctx.beginPath();
+ctx.arc(player.x, player.y-75, 6, 0, Math.PI);
+ctx.stroke();
+ctx.strokeStyle="#222";
+ctx.lineWidth=3;
+
+ctx.beginPath();
+ctx.arc(
+player.x+10,
+player.y-40,
+25,
+-1.2,
+1.2
+);
+ctx.stroke();
+
+
+arrows.forEach(a=>{
+
+let angle = Math.atan2(a.vy, a.vx);
+
+ctx.save();
+ctx.translate(a.x, a.y);
+ctx.rotate(angle);
+
+// ===== WARNA GLOBAL PANAH =====
+ctx.fillStyle = "#ffffff";
+ctx.strokeStyle = "#ffffff";
+
+// ===== BATANG =====
+ctx.fillRect(-30, -2, 30, 4);
+
+// outline batang biar tetap terlihat
+ctx.strokeStyle = "#cccccc";
+ctx.strokeRect(-30, -2, 30, 4);
+
+// ===== KEPALA PANAH =====
+ctx.beginPath();
+ctx.moveTo(0, 0);
+ctx.lineTo(-12, -5);
+ctx.lineTo(-12, 5);
+ctx.closePath();
+ctx.fill();
+
+// ===== BULU ATAS =====
+ctx.beginPath();
+ctx.moveTo(-30, 0);
+ctx.lineTo(-22, -4);
+ctx.lineTo(-22, 0);
+ctx.closePath();
+ctx.fill();
+
+// ===== BULU BAWAH =====
+ctx.beginPath();
+ctx.moveTo(-30, 0);
+ctx.lineTo(-22, 4);
+ctx.lineTo(-22, 0);
+ctx.closePath();
+ctx.fill();
+
+ctx.restore();
+
+});
+
+
+walls.forEach(w=>{
+
+// ===== ICE WALL (BODI TEMBOK) =====
+ctx.fillStyle = "rgba(173, 216, 230, 0.75)";
+ctx.fillRect(w.x, w.y, w.w, w.h);
+
+// ===== BORDER =====
+ctx.strokeStyle = "#aeefff";
+ctx.lineWidth = 2;
+ctx.strokeRect(w.x, w.y, w.w, w.h);
+
+// ===== RETAKAN =====
+ctx.strokeStyle = "rgba(255,255,255,0.6)";
+ctx.lineWidth = 1;
+
+for(let x = 0; x < w.w; x += 20){
+    ctx.beginPath();
+    ctx.moveTo(w.x + x, w.y);
+    ctx.lineTo(w.x + x, w.y + w.h);
+    ctx.stroke();
+}
+
+// ===== HP BAR =====
+ctx.fillStyle = "red";
+ctx.fillRect(w.x, w.y - 15, w.w, 8);
+
+ctx.fillStyle = "lime";
+ctx.fillRect(w.x, w.y - 15, (w.w * w.hp) / 3, 8);
+
+});
+}
+function loop(){
+
+if(!running) return;
+
+update();
+draw();
+
+requestAnimationFrame(loop);
+}
+
+function gameOver(){
+
+running=false;
+
+document.getElementById("finalScore").innerHTML=
+"⭐ Score: "+score;
+
+document.getElementById("bestScore").innerHTML=
+"🏆 Top Shoot: "+highscore;
+
+document.getElementById("gameover").style.display="flex";
+}
+
+function restartGame(){
+
+score=0;
+life=5;
+
+arrows.length=0;
+walls.length=0;
+
+document.getElementById("gameover").style.display="none";
+
+running=true;
+
+loop();
+}
+</script>
+
+</body>
+</html>
