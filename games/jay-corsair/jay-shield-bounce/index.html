@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Jay Shield Bounce</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#070014;font-family:Arial,sans-serif;touch-action:none;user-select:none}
+canvas{display:block;width:100vw;height:100vh;background:#070014}
+#menu{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,0,25,.78);z-index:10}
+.card{width:min(92vw,480px);padding:24px;border-radius:24px;text-align:center;color:white;background:linear-gradient(180deg,#390079,#10002d);border:2px solid #b84cff;box-shadow:0 0 38px rgba(184,76,255,.45)}
+h1{font-size:42px;margin-bottom:12px;text-shadow:0 0 22px #b84cff}
+p{color:#dfcaff;line-height:1.5;margin:12px 0 20px}
+button{border:0;border-radius:999px;padding:14px 28px;font-weight:900;font-size:16px;color:#230038;background:linear-gradient(90deg,#ffd83d,#b84cff,#45e9ff)}
+#hint{position:fixed;left:50%;bottom:15px;transform:translateX(-50%);color:#ead8ff;background:rgba(35,0,75,.6);border:1px solid rgba(184,76,255,.65);border-radius:999px;padding:9px 14px;font-size:12px;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="menu">
+  <div class="card">
+    <h1>🛡️ JAY SHIELD</h1>
+    <p>Move the shield with your finger. Bounce the JAY energy orb and collect coins.</p>
+    <button id="start">START GAME</button>
+  </div>
+</div>
+<div id="hint">MOVE FINGER TO CONTROL SHIELD</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const menu=document.getElementById("menu");
+const startBtn=document.getElementById("start");
+
+let w,h,run=false,frame=0,score=0,best=Number(localStorage.getItem("jay_shield_best")||0);
+let stars=[],coins=[],parts=[];
+let shield={x:0,y:0,w:120,h:18};
+let ball={x:0,y:0,r:15,vx:4,vy:-6};
+
+function rand(a,b){return Math.random()*(b-a)+a}
+function resize(){
+  w=innerWidth;h=innerHeight;canvas.width=w;canvas.height=h;
+  shield.x=w/2-shield.w/2;shield.y=h-90;
+  makeStars();
+}
+function makeStars(){
+  stars=[];for(let i=0;i<100;i++)stars.push({x:rand(0,w),y:rand(0,h),r:rand(.5,2),s:rand(.1,.5)});
+}
+function reset(){
+  run=true;frame=0;score=0;coins=[];parts=[];
+  shield.x=w/2-shield.w/2;
+  ball.x=w/2;ball.y=h/2;ball.vx=rand(-4,4)||4;ball.vy=-6;ball.r=15;
+  menu.style.display="none";
+}
+startBtn.onclick=reset;
+
+addEventListener("pointermove",e=>{shield.x=e.clientX-shield.w/2});
+addEventListener("pointerdown",e=>{if(e.target!==startBtn)shield.x=e.clientX-shield.w/2});
+
+function spawnCoin(){
+  coins.push({x:rand(35,w-35),y:rand(110,h*.55),r:14});
+}
+function burst(x,y,c,n){
+  for(let i=0;i<n;i++)parts.push({x,y,vx:rand(-3,3),vy:rand(-3,3),r:rand(2,5),life:rand(16,34),c});
+}
+function drawBg(){
+  let g=ctx.createRadialGradient(w/2,h/2,20,w/2,h/2,Math.max(w,h));
+  g.addColorStop(0,"#31006b");g.addColorStop(.5,"#16003a");g.addColorStop(1,"#05000f");
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+  stars.forEach(s=>{s.y+=s.s;if(s.y>h)s.y=0;ctx.fillStyle="rgba(255,255,255,.5)";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()});
+}
+function round(x,y,ww,hh,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+ww-r,y);ctx.quadraticCurveTo(x+ww,y,x+ww,y+r);
+  ctx.lineTo(x+ww,y+hh-r);ctx.quadraticCurveTo(x+ww,y+hh,x+ww-r,y+hh);
+  ctx.lineTo(x+r,y+hh);ctx.quadraticCurveTo(x,y+hh,x,y+hh-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+}
+function drawShield(){
+  ctx.shadowColor="#45e9ff";ctx.shadowBlur=20;
+  ctx.fillStyle="#45e9ff";round(shield.x,shield.y,shield.w,shield.h,12);ctx.fill();
+  ctx.shadowBlur=0;ctx.fillStyle="#fff";ctx.font="900 14px Arial";ctx.textAlign="center";ctx.fillText("JAY SHIELD",shield.x+shield.w/2,shield.y-8);
+}
+function drawBall(){
+  ctx.shadowColor="#b84cff";ctx.shadowBlur=25;
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(ball.x,ball.y,ball.r,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#b84cff";ctx.font="900 18px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("J",ball.x,ball.y+1);
+  ctx.shadowBlur=0;
+}
+function drawCoin(c){
+  ctx.shadowColor="#ffd83d";ctx.shadowBlur=14;
+  ctx.fillStyle="#ffd83d";ctx.beginPath();ctx.arc(c.x,c.y,c.r,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;ctx.strokeStyle="#ff9d00";ctx.lineWidth=4;ctx.stroke();
+  ctx.fillStyle="#704400";ctx.font="900 16px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("J",c.x,c.y+1);
+}
+function drawHud(){
+  ctx.fillStyle="#fff";ctx.font="900 24px Arial";ctx.textAlign="left";ctx.shadowColor="#b84cff";ctx.shadowBlur=12;
+  ctx.fillText("SCORE "+score,22,42);
+  ctx.fillStyle="#ffd83d";ctx.fillText("LEVEL "+(1+Math.floor(score/80)),22,74);
+  ctx.textAlign="right";ctx.fillStyle="#45e9ff";ctx.fillText("BEST "+best,w-22,42);
+  ctx.shadowBlur=0;
+}
+function drawParts(){
+  parts.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/34);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1});
+}
+function update(){
+  frame++;
+  if(frame%90===0)spawnCoin();
+  shield.x=Math.max(10,Math.min(w-shield.w-10,shield.x));
+  ball.x+=ball.vx;ball.y+=ball.vy;
+  ball.vy+=0.015;
+  if(ball.x<ball.r||ball.x>w-ball.r){ball.vx*=-1;burst(ball.x,ball.y,"#45e9ff",8)}
+  if(ball.y<ball.r){ball.vy*=-1;burst(ball.x,ball.y,"#b84cff",8)}
+  if(ball.y+ball.r>shield.y&&ball.y-ball.r<shield.y+shield.h&&ball.x>shield.x&&ball.x<shield.x+shield.w&&ball.vy>0){
+    let hit=(ball.x-(shield.x+shield.w/2))/(shield.w/2);
+    ball.vx=hit*6;
+    ball.vy=-(6+Math.min(score/120,4));
+    score+=5;
+    if(score>best){best=score;localStorage.setItem("jay_shield_best",best)}
+    burst(ball.x,ball.y,"#45e9ff",16);
+  }
+  if(ball.y>h+40)gameOver();
+  coins=coins.filter(c=>{
+    if(Math.hypot(ball.x-c.x,ball.y-c.y)<ball.r+c.r){
+      score+=15;if(score>best){best=score;localStorage.setItem("jay_shield_best",best)}
+      burst(c.x,c.y,"#ffd83d",20);return false;
+    }
+    return true;
+  });
+  parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;p.vx*=.97;p.vy*=.97});
+  parts=parts.filter(p=>p.life>0);
+}
+function gameOver(){
+  run=false;
+  menu.style.display="flex";
+  menu.innerHTML='<div class="card"><h1>GAME OVER</h1><p>Score: <b>'+score+'</b><br>Best: <b>'+best+'</b></p><button onclick="location.reload()">PLAY AGAIN</button></div>';
+}
+function loop(){
+  drawBg();coins.forEach(drawCoin);drawShield();drawBall();drawParts();drawHud();
+  if(run)update();else frame++;
+  requestAnimationFrame(loop);
+}
+addEventListener("resize",resize);resize();loop();
+</script>
+</body>
+</html>
