@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JAY BOWLING</title>
+
+<style>
+body{
+    margin:0;
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+    background:#111;
+    touch-action:none;
+}
+
+canvas{
+    display:block;
+}
+
+#menu,
+#gameover{
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    background:rgba(0,0,0,.8);
+}
+
+.title{
+    color:#b000ff;
+    font-size:clamp(32px,8vw,60px);
+    font-weight:bold;
+    text-shadow:0 0 20px #b000ff;
+}
+
+.instructions{
+    color:white;
+    text-align:center;
+    max-width:320px;
+    margin:20px;
+    line-height:1.6;
+    font-size:16px;
+}
+
+button{
+    margin:10px;
+    padding:12px 24px;
+    font-size:clamp(14px,4vw,20px);
+    border:none;
+    border-radius:10px;
+    background:#b000ff;
+    color:white;
+    cursor:pointer;
+    box-shadow:0 0 15px #b000ff;
+}
+
+#hud{
+    position:absolute;
+    top:10px;
+    left:10px;
+
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+
+    z-index:100;
+}
+.hudBox{
+
+    min-width:90px;
+
+    background:rgba(0,0,0,.6);
+
+    border:2px solid #b000ff;
+
+    border-radius:12px;
+
+    padding:6px 10px;
+
+    text-align:center;
+
+    color:white;
+
+    box-shadow:0 0 10px rgba(176,0,255,.6);
+
+    font-size:11px;
+
+    font-weight:bold;
+}
+.hudBox span{
+
+    display:block;
+
+    margin-top:4px;
+
+    font-size:20px;
+
+    color:#ffd700;
+
+    text-shadow:
+        0 0 8px #ffd700;
+}
+@media(max-width:600px){
+
+    .hudBox{
+
+        padding:6px;
+
+        font-size:10px;
+    }
+
+    .hudBox span{
+
+        font-size:14px;
+    }
+
+}
+</style>
+</head>
+<body>
+
+<div id="menu">
+    <div class="title">🎳 JAY BOWLING</div>
+
+    <p class="instructions">
+        👈👉 Drag to move the ball<br>
+        👆 Swipe up to throw<br>
+        🎳 Hit pins to earn points<br>
+        🏆 Clear all pins for bonus score<br>
+        ❤️ Bad throws cost lives
+    </p>
+
+    <button id="startBtn">START GAME</button>
+</div>
+
+<div id="hud" style="display:none">
+
+    <div class="hudBox">
+        🏆 SCORE
+        <span id="score">0</span>
+    </div>
+
+    <div class="hudBox">
+        ⭐ BEST
+        <span id="best">0</span>
+    </div>
+
+    <div class="hudBox">
+        ❤️ LIVES
+        <span id="lives">❤️❤️❤️</span>
+    </div>
+
+    <div class="hudBox">
+        🎳 PINS
+        <span id="pinsleft">10</span>
+    </div>
+
+</div>
+
+<div id="gameover" style="display:none">
+    <div class="title">GAME OVER</div>
+
+    <h2 id="finalScore"></h2>
+
+    <h3 id="bestScoreGameOver"></h3>
+
+    <button onclick="restartGame()">
+        PLAY AGAIN
+    </button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+let score = 0;
+let pinsHitThisThrow = 0;
+let bestScore = localStorage.getItem("jayBowlingBest") || 0;
+let lives = 3;
+let isGameOver = false;
+
+
+let ball = {
+    x: canvas.width/2,
+    y: canvas.height-120,
+    r: 25,
+    speed:0,
+    moving:false
+};
+
+let pins = [];
+let popups = [];
+let winnerText = 0;
+
+function hitSound(){
+
+    const audioCtx =
+        new (window.AudioContext ||
+        window.webkitAudioContext)();
+
+    const osc =
+        audioCtx.createOscillator();
+
+    const gain =
+        audioCtx.createGain();
+
+    osc.type = "triangle";
+
+    osc.frequency.setValueAtTime(
+        220,
+        audioCtx.currentTime
+    );
+
+    osc.frequency.exponentialRampToValueAtTime(
+        80,
+        audioCtx.currentTime + 0.05
+    );
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    gain.gain.setValueAtTime(
+        0.25,
+        audioCtx.currentTime
+    );
+
+    gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        audioCtx.currentTime + 0.05
+    );
+
+    osc.start();
+    osc.stop(audioCtx.currentTime + 0.05);
+}
+document.getElementById("best").textContent = bestScore;
+
+function createPins(){
+
+    pins=[];
+
+    let startX = canvas.width/2;
+    let startY = 150;
+
+    let row=1;
+
+    for(let r=0;r<4;r++){
+
+        for(let c=0;c<row;c++){
+
+            pins.push({
+    x:startX-(row-1)*25+c*50,
+    y:startY+r*50,
+
+    hit:false,
+
+    vx:0,
+    vy:0,
+
+    rotation:0,
+    rotationSpeed:0
+});
+
+        }
+
+        row++;
+    }
+}
+
+createPins();
+
+function drawLane(){
+
+    let laneX = canvas.width/2-140;
+
+    let grad = ctx.createLinearGradient(
+        laneX,
+        0,
+        laneX+280,
+        0
+    );
+
+    grad.addColorStop(0,"#5a3415");
+    grad.addColorStop(.5,"#c28b45");
+    grad.addColorStop(1,"#5a3415");
+
+    ctx.fillStyle=grad;
+
+    ctx.fillRect(
+        laneX,
+        0,
+        280,
+        canvas.height
+    );
+
+    // garis lane
+
+    ctx.strokeStyle="rgba(255,255,255,0.25)";
+    ctx.lineWidth=2;
+
+    ctx.beginPath();
+    ctx.moveTo(laneX+20,0);
+    ctx.lineTo(laneX+20,canvas.height);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(laneX+260,0);
+    ctx.lineTo(laneX+260,canvas.height);
+    ctx.stroke();
+
+}
+
+function drawPowerBar(){
+
+    let x = 20;
+    let y = canvas.height - 220;
+
+    // Background
+    ctx.fillStyle = "#222";
+    ctx.fillRect(x,y,30,180);
+
+    // Isi power
+    let height =
+        (power/maxPower)*180;
+
+    let grad =
+        ctx.createLinearGradient(
+            0,
+            y+180,
+            0,
+            y
+        );
+
+    grad.addColorStop(0,"#00ff00");
+    grad.addColorStop(0.5,"#ffff00");
+    grad.addColorStop(1,"#ff0000");
+
+    ctx.fillStyle = grad;
+
+    ctx.fillRect(
+        x,
+        y+180-height,
+        30,
+        height
+    );
+
+    // Border
+    ctx.strokeStyle="white";
+    ctx.lineWidth=2;
+    ctx.strokeRect(x,y,30,180);
+
+    // Label
+    ctx.fillStyle="white";
+    ctx.font="16px Arial";
+    
+}
+
+function drawBall(){
+
+    ctx.beginPath();
+
+// Bola hitam glossy
+let grad = ctx.createRadialGradient(
+    ball.x - 8,
+    ball.y - 8,
+    5,
+    ball.x,
+    ball.y,
+    ball.r
+);
+
+grad.addColorStop(0,"#555555");
+grad.addColorStop(0.4,"#222222");
+grad.addColorStop(1,"#000000");
+
+ctx.fillStyle = grad;
+ctx.arc(
+    ball.x,
+    ball.y,
+    ball.r,
+    0,
+    Math.PI * 2
+);
+ctx.fill();
+
+// Outline tipis
+ctx.strokeStyle = "#666666";
+ctx.lineWidth = 2;
+ctx.stroke();
+
+// Huruf J ungu terang
+ctx.fillStyle = "#d946ff";
+ctx.font = "bold 22px Arial";
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+// Glow ungu
+ctx.shadowColor = "#d946ff";
+ctx.shadowBlur = 15;
+
+ctx.fillText(
+    "J",
+    ball.x,
+    ball.y
+);
+
+ctx.shadowBlur = 0;
+}
+
+function drawPins(){
+
+    pins.forEach(pin=>{
+
+        ctx.save();
+
+ctx.translate(pin.x,pin.y);
+
+ctx.rotate(pin.rotation);
+
+        // bayangan
+        ctx.beginPath();
+        ctx.ellipse(0,22,10,4,0,0,Math.PI*2);
+        ctx.fillStyle="rgba(0,0,0,0.25)";
+        ctx.fill();
+
+        // badan pin
+        ctx.beginPath();
+
+        ctx.moveTo(-10,20);
+
+        ctx.bezierCurveTo(
+            -18,10,
+            -15,-5,
+            -8,-15
+        );
+
+        ctx.bezierCurveTo(
+            -5,-30,
+            5,-30,
+            8,-15
+        );
+
+        ctx.bezierCurveTo(
+            15,-5,
+            18,10,
+            10,20
+        );
+
+        ctx.closePath();
+
+        ctx.fillStyle="#ffffff";
+        ctx.fill();
+
+        // outline
+        ctx.strokeStyle="#dddddd";
+        ctx.lineWidth=1;
+        ctx.stroke();
+
+        // garis merah pin
+        ctx.fillStyle="#d40000";
+        ctx.fillRect(-7,-13,14,3);
+        ctx.fillRect(-7,-8,14,3);
+
+        // efek glossy
+        ctx.beginPath();
+        ctx.moveTo(-4,-20);
+        ctx.lineTo(-2,10);
+        ctx.lineTo(1,10);
+        ctx.lineTo(-1,-20);
+        ctx.fillStyle="rgba(255,255,255,0.45)";
+        ctx.fill();
+
+        ctx.restore();
+
+    });
+
+}
+
+function updatePins(){
+
+    pins.forEach(pin=>{
+
+        if(!pin.hit) return;
+
+        pin.x += pin.vx;
+        pin.y += pin.vy;
+
+        pin.rotation += pin.rotationSpeed;
+
+        pin.vx *= 0.96;
+        pin.vy *= 0.96;
+
+        pin.rotationSpeed *= 0.96;
+
+    });
+
+}
+
+function updatePopups(){
+
+    for(let i = popups.length - 1; i >= 0; i--){
+
+        let p = popups[i];
+
+        p.y -= 1.2;
+
+        p.life--;
+
+        if(p.life <= 0){
+
+            popups.splice(i,1);
+
+        }
+
+    }
+
+}
+
+function drawPopups(){
+
+    popups.forEach(p=>{
+
+        ctx.save();
+
+        ctx.globalAlpha = p.life / 60;
+
+        ctx.fillStyle = "#ffff00";
+
+        ctx.font = "bold 24px Arial";
+
+        ctx.textAlign = "center";
+
+        ctx.fillText(
+            p.text,
+            p.x,
+            p.y
+        );
+
+        ctx.restore();
+
+    });
+
+}
+
+function updateBall(){
+if(isGameOver) return;
+
+    if(ball.moving){
+
+        ball.y -= ball.speed;
+
+        pins.forEach(pin=>{
+
+            if(pin.hit) return;
+
+            let dx = ball.x-pin.x;
+            let dy = ball.y-pin.y;
+
+            let d = Math.sqrt(dx*dx+dy*dy);
+
+            if(d<30 && !pin.hit){
+
+    pin.hit = true;
+
+    hitSound();
+    let angle = Math.atan2(
+        pin.y - ball.y,
+        pin.x - ball.x
+    );
+
+    let force = 8;
+
+    pin.vx = Math.cos(angle) * force;
+    pin.vy = Math.sin(angle) * force;
+
+    pin.rotationSpeed =
+        (Math.random() - 0.5) * 0.3;
+
+    ball.speed *= 0.92;
+
+    score += 10;
+    pinsHitThisThrow++;
+
+popups.push({
+    x: pin.x,
+    y: pin.y,
+    text: "+10",
+    life: 60
+});
+
+updateHUD();
+}
+        });
+
+        if(ball.y<0){
+
+            endRound();
+        }
+    }
+}
+
+function updateHUD(){
+
+    document.getElementById("score").textContent=score;
+
+    let left = pins.filter(p=>!p.hit).length;
+
+    document.getElementById("pinsleft").textContent=left;
+
+    document.getElementById("lives").textContent=
+        "❤️".repeat(lives);
+}
+
+function endRound(){
+    if(isGameOver) return;
+    
+
+    let knocked =
+        pins.filter(p=>p.hit).length;
+
+    let left =
+        pins.filter(p=>!p.hit).length;
+
+    // kehilangan nyawa jika lemparan buruk
+    if(pinsHitThisThrow <= 2){
+
+    lives--;
+
+}
+
+    // semua pin habis
+
+if(left === 0){
+
+    score += 50;
+
+    winnerText = 120; // tampil 2 detik
+
+    setTimeout(()=>{
+
+        createPins();
+
+    },2000);
+
+}
+
+    if(score > bestScore){
+
+        bestScore = score;
+
+        localStorage.setItem(
+            "jayBowlingBest",
+            bestScore
+        );
+
+        document.getElementById("best")
+        .textContent = bestScore;
+    }
+
+    if(lives <= 0){
+
+        gameOver();
+        return;
+    }
+
+    // reset posisi bola saja
+    ball.x = canvas.width/2;
+    ball.y = canvas.height-120;
+
+    ball.moving = false;
+    ball.speed = 0;
+
+    pinsHitThisThrow = 0;
+    updateHUD();
+}
+
+function gameOver(){
+
+    if(isGameOver) return;
+
+    isGameOver = true;
+
+    document.getElementById("gameover").style.display="flex";
+
+    document.getElementById("finalScore").innerText =
+        "Final Score: " + score;
+
+    document.getElementById("bestScoreGameOver").innerText =
+        "Best Score: " + bestScore;
+}
+
+function restartGame(){
+
+    isGameOver = false;
+
+    score = 0;
+    lives = 3;
+
+    pinsHitThisThrow = 0;
+
+    ball.x = canvas.width/2;
+    ball.y = canvas.height-120;
+
+    ball.speed = 0;
+    ball.moving = false;
+
+    createPins();
+
+    document.getElementById("gameover").style.display = "none";
+
+    updateHUD();
+}
+
+let drag = false;
+let swipeStartY = 0;
+
+let power = 0;
+let maxPower = 100;
+
+canvas.addEventListener("mousedown",(e)=>{
+
+    drag=true;
+
+    swipeStartY = e.clientY;
+
+});
+
+canvas.addEventListener("mousemove",(e)=>{
+
+    if(!drag || ball.moving) return;
+    let swipeDistance =
+    swipeStartY - e.clientY;
+
+power = Math.max(
+    0,
+    Math.min(
+        maxPower,
+        swipeDistance
+    )
+);
+
+    ball.x=e.clientX;
+
+    let laneLeft=
+        canvas.width/2-120;
+
+    let laneRight=
+        canvas.width/2+120;
+
+    if(ball.x<laneLeft+30)
+        ball.x=laneLeft+30;
+
+    if(ball.x>laneRight-30)
+        ball.x=laneRight-30;
+});
+
+canvas.addEventListener("mouseup",(e)=>{
+
+    drag=false;
+
+    if(!ball.moving){
+
+        let swipeDistance =
+            swipeStartY - e.clientY;
+
+        ball.speed = 8 + (power * 0.35);
+
+        ball.moving = true;
+        power = 0;
+    }
+
+});
+canvas.addEventListener("touchstart",(e)=>{
+
+    e.preventDefault();
+
+    let touch = e.touches[0];
+
+    drag = true;
+    swipeStartY = touch.clientY;
+
+});
+
+canvas.addEventListener("touchmove",(e)=>{
+
+    e.preventDefault();
+
+    if(!drag || ball.moving) return;
+
+    let touch = e.touches[0];
+
+    let swipeDistance =
+        swipeStartY - touch.clientY;
+
+    power = Math.max(
+        0,
+        Math.min(maxPower, swipeDistance)
+    );
+
+    ball.x = touch.clientX;
+
+    let laneLeft = canvas.width/2 - 120;
+    let laneRight = canvas.width/2 + 120;
+
+    if(ball.x < laneLeft + 30)
+        ball.x = laneLeft + 30;
+
+    if(ball.x > laneRight - 30)
+        ball.x = laneRight - 30;
+
+});
+
+canvas.addEventListener("touchend",(e)=>{
+
+    e.preventDefault();
+
+    drag = false;
+
+    if(!ball.moving){
+
+        ball.speed = 8 + (power * 0.35);
+
+        ball.moving = true;
+
+        power = 0;
+    }
+
+});
+
+function drawWinner(){
+
+    if(winnerText <= 0) return;
+
+    ctx.save();
+
+    ctx.fillStyle = "#ffff00";
+    ctx.font = "bold 70px Arial";
+    ctx.textAlign = "center";
+
+    ctx.shadowColor = "#ffff00";
+    ctx.shadowBlur = 20;
+
+    ctx.fillText(
+        "🏆 WINNER! 🏆",
+        canvas.width/2,
+        canvas.height/2
+    );
+
+    ctx.restore();
+
+    winnerText--;
+
+}
+
+function loop(){
+
+
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    drawLane();
+
+    drawPowerBar();
+
+    updatePins();
+    updatePopups();
+
+    drawPins();
+
+    drawBall();
+    updateBall();
+
+    drawPopups();
+
+    drawWinner();
+
+    requestAnimationFrame(loop);
+}
+loop();
+
+document
+.getElementById("startBtn")
+.onclick=function(){
+
+    document.getElementById("menu")
+    .style.display="none";
+
+    document.getElementById("hud")
+    .style.display="block";
+
+    updateHUD();
+};
+
+</script>
+
+</body>
+</html>
