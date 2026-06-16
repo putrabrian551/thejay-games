@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+<title>Fruit Ninja HTML</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+
+    background:
+    radial-gradient(
+        circle at top,
+        #1f3b73 0%,
+        #10182f 40%,
+        #050814 100%
+    );
+}
+
+canvas{
+    display:block;
+}
+
+#ui{
+    position:absolute;
+    top:20px;
+    left:20px;
+    z-index:10;
+}
+
+#scoreBox{
+    display:inline-block;
+
+    padding:12px 22px;
+
+    background:rgba(0,0,0,.45);
+
+    border:2px solid #FFD700;
+
+    border-radius:18px;
+
+    color:#FFD700;
+
+    font-size:28px;
+    font-weight:bold;
+
+    box-shadow:
+    0 0 10px #FFD700,
+    inset 0 0 10px rgba(255,215,0,.3);
+
+    margin-bottom:10px;
+}
+
+#livesBox{
+    display:inline-block;
+
+    padding:10px 20px;
+
+    background:rgba(0,0,0,.45);
+
+    border:2px solid #ff4d6d;
+
+    border-radius:18px;
+
+    color:#ff4d6d;
+
+    font-size:28px;
+
+    box-shadow:
+    0 0 10px #ff4d6d,
+    inset 0 0 10px rgba(255,77,109,.3);
+
+    margin-top:10px;
+}
+
+#gameOver{
+    position:fixed;
+    top:0;
+    left:0;
+
+    width:100%;
+    height:100%;
+
+    display:none;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+
+    text-align:center;
+
+    padding:20px;
+
+    background:rgba(0,0,0,.85);
+
+    color:white;
+
+    z-index:9999;
+}
+
+#gameOver h1{
+
+    font-size:min(72px,12vw);
+
+    color:#ff4d6d;
+
+    text-shadow:
+    0 0 10px #ff4d6d,
+    0 0 25px #ff4d6d,
+    0 0 45px #ff4d6d;
+
+    margin-bottom:15px;
+}
+
+#finalScore{
+
+    font-size:32px;
+
+    color:#FFD700;
+
+    margin-bottom:25px;
+
+    text-shadow:
+    0 0 10px #FFD700;
+}
+
+#gameOver button{
+
+    padding:16px 40px;
+
+    font-size:22px;
+    font-weight:bold;
+
+    border:none;
+    border-radius:15px;
+
+    cursor:pointer;
+
+    color:white;
+
+    background:linear-gradient(
+        45deg,
+        #ff4d6d,
+        #ff7b00
+    );
+
+    box-shadow:
+    0 0 15px #ff4d6d,
+    0 0 35px #ff7b00;
+
+    transition:.2s;
+}
+
+#gameOver button:hover{
+    transform:scale(1.05);
+}
+
+button{
+    padding:12px 25px;
+    border:none;
+    border-radius:10px;
+    font-size:20px;
+    cursor:pointer;
+}
+#startScreen{
+    position:absolute;
+    inset:0;
+
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+
+    background: radial-gradient(circle at top, #1a2a6c, #0b0f2a, #050510);
+
+    color:white;
+
+    z-index:999;
+
+    text-align:center;
+}
+
+#startScreen h1{
+    font-size:60px;
+    font-weight:bold;
+
+    color:#FFD700;
+
+    text-shadow:
+    0 0 10px #FFD700,
+    0 0 25px #FFD700,
+    0 0 40px #ffcc00;
+
+    margin-bottom:10px;
+}
+
+#startScreen p{
+    font-size:18px;
+    margin:6px;
+    opacity:0.9;
+}
+
+#startBtn{
+    margin-top:25px;
+
+    padding:15px 40px;
+
+    font-size:22px;
+    font-weight:bold;
+
+    border:none;
+    border-radius:15px;
+
+    cursor:pointer;
+
+    background: linear-gradient(45deg, #FFD700, #ff9900);
+
+    box-shadow:
+    0 0 15px #FFD700,
+    0 0 30px #ff9900;
+
+    transition:0.2s;
+}
+
+#startBtn:active{
+    transform:scale(0.95);
+}
+canvas{
+    position:absolute;
+    top:0;
+    left:0;
+    z-index:1;
+}
+
+#ui{
+    z-index:10;
+}
+
+#startScreen{
+    z-index:1000;
+}
+canvas{
+    pointer-events:auto;
+}
+
+#startScreen{
+    pointer-events:auto;
+    z-index:9999;
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+
+    <div id="scoreBox">⭐ 0</div>
+
+    <div id="livesBox">❤️❤️❤️</div>
+
+</div>
+
+<div id="gameOver">
+
+    <h1>GAME OVER</h1>
+
+    <h2 id="finalScore"></h2>
+
+    <button onclick="restartGame()">
+        PLAY AGAIN
+    </button>
+
+</div>
+
+<div id="startScreen">
+
+    <h1>⭐ JAY STAR NINJA ⭐</h1>
+
+    <p>Master the art of the ninja.</p>
+
+    <p>Slice stars, crystals, and lightning bolts.</p>
+
+    <p>Earn +15 points for every successful slash.</p>
+
+    <p>Be careful! Slicing a bomb will cost you a life. 💣</p>
+
+    <button id="startBtn">
+        START GAME
+    </button>
+
+</div>
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+function resizeCanvas(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener("resize",resizeCanvas);
+
+let fruits = [];
+let particles = [];
+
+let score = 0;
+let lives = 3;
+let gameRunning = false;
+
+let swipePoints = [];
+
+const fruitColors = [
+    "#FFD700", // bintang
+    "#00C8FF", // kristal
+    "#9C27B0", // berlian
+    "#FF9800"  // petir
+    
+];
+
+class Fruit{
+    constructor(isBomb=false){
+
+        this.radius = 35 + Math.random()*15;
+
+        this.x =
+        Math.random()*(canvas.width-this.radius*2)+this.radius;
+
+        this.y = canvas.height + 100;
+
+        this.vx = (Math.random()-0.5)*8;
+
+        this.vy = -(14 + Math.random()*6);
+
+        this.gravity = 0.25;
+
+        this.sliced = false;
+
+        this.isBomb = isBomb;
+
+        this.color = isBomb
+            ? "#222"
+            : fruitColors[Math.floor(Math.random()*fruitColors.length)];
+    }
+
+    update(){
+
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vy += this.gravity;
+
+        if(this.y > canvas.height + 120){
+    return false;
+}
+
+        return true;
+    }
+
+    draw(){
+
+    // BOM
+    if(this.isBomb){
+
+        ctx.fillStyle="#222";
+
+        ctx.beginPath();
+        ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);
+        ctx.fill();
+
+        ctx.strokeStyle="white";
+        ctx.lineWidth=3;
+        ctx.stroke();
+
+        ctx.fillStyle="orange";
+        ctx.beginPath();
+        ctx.arc(
+            this.x+10,
+            this.y-10,
+            5,
+            0,
+            Math.PI*2
+        );
+        ctx.fill();
+
+        return;
+    }
+
+    // BINTANG
+    if(this.color === "#FFD700"){
+
+        ctx.fillStyle="#FFD700";
+
+        drawStar(
+            this.x,
+            this.y,
+            5,
+            this.radius,
+            this.radius/2
+        );
+    }
+
+    // KRISTAL
+    else if(this.color === "#00C8FF"){
+
+        ctx.fillStyle="#00C8FF";
+
+        ctx.beginPath();
+        ctx.moveTo(this.x,this.y-this.radius);
+        ctx.lineTo(this.x+this.radius*0.7,this.y);
+        ctx.lineTo(this.x,this.y+this.radius);
+        ctx.lineTo(this.x-this.radius*0.7,this.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = "#ff66ff";
+
+ctx.font = `bold ${this.radius}px Arial`;
+ctx.textAlign = "center";
+ctx.textBaseline = "middle";
+
+ctx.fillText(
+    "J",
+    this.x,
+    this.y
+);
+    }
+
+    // BERLIAN
+    else if(this.color === "#9C27B0"){
+
+        ctx.fillStyle="#9C27B0";
+
+        ctx.beginPath();
+        ctx.moveTo(this.x,this.y-this.radius);
+        ctx.lineTo(this.x+this.radius,this.y);
+        ctx.lineTo(this.x,this.y+this.radius);
+        ctx.lineTo(this.x-this.radius,this.y);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    // PETIR
+    else{
+
+        ctx.beginPath();
+
+ctx.moveTo(
+    this.x - this.radius*0.4,
+    this.y - this.radius
+);
+
+ctx.lineTo(
+    this.x + this.radius*0.3,
+    this.y - this.radius*0.2
+);
+
+ctx.lineTo(
+    this.x,
+    this.y - this.radius*0.2
+);
+
+ctx.lineTo(
+    this.x + this.radius*0.4,
+    this.y + this.radius
+);
+
+ctx.lineTo(
+    this.x - this.radius*0.3,
+    this.y + this.radius*0.2
+);
+
+ctx.lineTo(
+    this.x,
+    this.y + this.radius*0.2
+);
+
+ctx.closePath();
+
+ctx.fill();
+    }
+}
+}
+
+class Particle{
+    
+
+    constructor(x,y,color){
+
+        this.x=x;
+        this.y=y;
+
+        this.vx=(Math.random()-0.5)*10;
+        this.vy=(Math.random()-0.5)*10;
+
+        this.life=40;
+
+        this.color=color;
+    }
+
+    update(){
+
+        this.x+=this.vx;
+        this.y+=this.vy;
+
+        this.life--;
+
+        return this.life>0;
+    }
+
+    draw(){
+
+        ctx.fillStyle=this.color;
+
+        ctx.beginPath();
+        ctx.arc(
+            this.x,
+            this.y,
+            4,
+            0,
+            Math.PI*2
+        );
+
+        ctx.fill();
+    }
+}
+function drawStar(cx,cy,spikes,outerRadius,innerRadius){
+
+    let rot = Math.PI/2*3;
+    let x = cx;
+    let y = cy;
+
+    ctx.beginPath();
+
+    ctx.moveTo(cx,cy-outerRadius);
+
+    for(let i=0;i<spikes;i++){
+
+        x = cx + Math.cos(rot)*outerRadius;
+        y = cy + Math.sin(rot)*outerRadius;
+
+        ctx.lineTo(x,y);
+
+        rot += Math.PI/spikes;
+
+        x = cx + Math.cos(rot)*innerRadius;
+        y = cy + Math.sin(rot)*innerRadius;
+
+        ctx.lineTo(x,y);
+
+        rot += Math.PI/spikes;
+    }
+
+    ctx.closePath();
+    ctx.fill();
+}
+
+function createSplash(x,y,color){
+
+    for(let i=0;i<20;i++){
+
+        particles.push(
+            new Particle(x,y,color)
+        );
+    }
+}
+
+function spawnWave(){
+
+    let amount =
+    Math.floor(Math.random()*3)+2;
+
+    for(let i=0;i<amount;i++){
+
+        setTimeout(()=>{
+
+            if(gameRunning){
+
+                let bombChance=Math.random();
+
+                fruits.push(
+                    new Fruit(
+                        bombChance<0.15
+                    )
+                );
+
+            }
+
+        },i*150);
+    }
+}
+
+let spawnInterval;
+
+function updateUI(){
+
+    document.getElementById("scoreBox").innerText =
+        "⭐ " + score;
+
+    document.getElementById("livesBox").innerText =
+        "❤️".repeat(lives);
+}
+
+function endGame(){
+
+    gameRunning = false;
+
+    document.getElementById("finalScore").innerText =
+    "FINAL SCORE : " + score;
+
+    document.getElementById("gameOver").style.display =
+        "flex";
+}
+
+function restartGame(){
+
+    fruits = [];
+    particles = [];
+
+    score = 0;
+    lives = 3;
+
+    gameRunning = true;
+
+    updateUI();
+
+    document.getElementById("gameOver").style.display =
+        "none";
+
+    clearInterval(spawnInterval);
+
+    spawnInterval = setInterval(() => {
+
+        if(gameRunning){
+            spawnWave();
+        }
+
+    }, 1200);
+}
+
+function checkSlice(x,y){
+
+    fruits.forEach(fruit=>{
+
+        if(fruit.sliced) return;
+
+        const dx = x - fruit.x;
+        const dy = y - fruit.y;
+
+        const dist = Math.sqrt(
+            dx*dx + dy*dy
+        );
+
+        if(dist < fruit.radius){
+
+            fruit.sliced = true;
+
+            createSplash(
+                fruit.x,
+                fruit.y,
+                fruit.color
+            );
+
+            if(fruit.isBomb){
+
+    lives--;
+
+    updateUI();
+
+    if(lives <= 0){
+        endGame();
+    }
+
+}else{
+
+    score+=15;
+    updateUI();
+}
+        }
+    });
+
+    fruits = fruits.filter(
+        fruit=>!fruit.sliced
+    );
+}
+
+function addSwipePoint(x,y){
+
+    swipePoints.push({
+        x:x,
+        y:y
+    });
+
+    if(swipePoints.length>15){
+        swipePoints.shift();
+    }
+
+    checkSlice(x,y);
+}
+
+canvas.addEventListener("mousemove",e=>{
+
+    addSwipePoint(
+        e.clientX,
+        e.clientY
+    );
+});
+
+canvas.addEventListener("touchmove",e=>{
+
+    const touch=e.touches[0];
+
+    addSwipePoint(
+        touch.clientX,
+        touch.clientY
+    );
+
+},{passive:true});
+
+function drawSwipe(){
+
+    if(swipePoints.length<2) return;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        swipePoints[0].x,
+        swipePoints[0].y
+    );
+
+    for(let p of swipePoints){
+
+        ctx.lineTo(
+            p.x,
+            p.y
+        );
+    }
+
+    ctx.strokeStyle="white";
+    ctx.lineWidth=5;
+    ctx.stroke();
+}
+
+function animate(){
+
+    ctx.fillStyle = "#050814";
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    fruits = fruits.filter(
+        fruit=>fruit.update()
+    );
+    fruits.forEach(
+        fruit=>fruit.draw()
+    );
+
+    particles = particles.filter(
+        p=>p.update()
+    );
+
+    particles.forEach(
+        p=>p.draw()
+    );
+
+    drawSwipe();
+
+    requestAnimationFrame(
+        animate
+    );
+}
+
+updateUI();
+animate();
+document.getElementById("startBtn").onclick = function(){
+
+    restartGame();
+
+    gameRunning = true;
+
+    document.getElementById("startScreen").style.display = "none";
+
+    clearInterval(spawnInterval);
+
+    spawnInterval = setInterval(() => {
+
+        if(gameRunning){
+            spawnWave();
+        }
+
+    }, 1200);
+
+};
+</script>
+
+</body>
+</html>
