@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CYBER SLASH FINAL BOSS</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@900&display=swap');
+        body { margin: 0; background: #020205; display: flex; justify-content: center; align-items: center; height: 100vh; color: #fff; font-family: 'Orbitron', sans-serif; overflow: hidden; touch-action: none; }
+        #gameCanvas { border: 10px solid #111; box-shadow: 0 0 80px rgba(255, 0, 255, 0.2); background: #000; cursor: crosshair; touch-action: none; }
+        .ui-panel { position: absolute; text-align: center; background: rgba(10, 10, 20, 0.98); padding: 50px; border: 3px solid #00f0ff; box-shadow: 0 0 50px #00f0ff; border-radius: 20px; z-index: 100; }
+    </style>
+</head>
+<body>
+
+<div id="ui" class="ui-panel">
+    <h1 id="titleText" style="font-size: 50px; color: #fff; text-shadow: 0 0 20px #00f0ff; margin-bottom:10px;">CYBER SLASH</h1>
+    <div id="statusText" style="font-size: 20px; color: #aaa; margin-bottom: 20px;">READY FOR MISSION?</div>
+    <button id="btn" style="padding: 20px 60px; font-size: 28px; background: #ff007f; color: white; border: none; cursor: pointer; border-radius: 10px; font-family: inherit;">START</button>
+</div>
+
+<canvas id="gameCanvas" width="600" height="800"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    // Fungsi untuk membuat game menyesuaikan layar HP
+    function fitCanvas() {
+        const scale = Math.min(window.innerWidth / 600, window.innerHeight / 800);
+        canvas.style.width = (600 * scale) + "px";
+        canvas.style.height = (800 * scale) + "px";
+    }
+    window.addEventListener('resize', fitCanvas);
+    fitCanvas();
+
+    function playSound(type) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        if(type === 'slash') { osc.frequency.setValueAtTime(400, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1); }
+        else { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime); osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.5); }
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+    }
+
+    let score = 0, highscore = localStorage.getItem('hs') || 0, lives = 3, gameActive = false, particles = [], projectiles = [], enemies = [], boss = null, bossSpawned = false, winner = false;
+    const lanes = [75, 225, 375, 525], colors = ['#00f0ff', '#ff007f', '#00ff66', '#ffcc00'];
+
+    function drawSword(x, y, color) {
+        ctx.save(); ctx.shadowBlur = 15; ctx.shadowColor = color; ctx.fillStyle = color;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+15, y+35); ctx.lineTo(x, y+60); ctx.lineTo(x-15, y+35);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#fff"; ctx.fillRect(x-5, y+35, 10, 15); ctx.restore();
+    }
+
+    function update() {
+        if(!gameActive) return;
+        ctx.clearRect(0, 0, 600, 800);
+        ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, 0, 600, 80);
+        ctx.fillStyle = "#fff"; ctx.font = "30px Orbitron";
+        ctx.fillText(`SCORE: ${score}`, 20, 55);
+        ctx.textAlign = "right"; ctx.fillText(`LIVES: ${lives}`, 580, 55);
+        ctx.textAlign = "left";
+
+        if(score >= 500 && !bossSpawned && !winner) {
+            boss = { x: 300, y: 150, hp: 100, dir: 4 };
+            bossSpawned = true;
+        }
+
+        if(boss) {
+            boss.x += boss.dir;
+            if(boss.x > 500 || boss.x < 100) boss.dir *= -1;
+            ctx.save(); ctx.shadowBlur = 40; ctx.shadowColor = "#bf00ff";
+            ctx.fillStyle = "#4b0082"; ctx.beginPath(); ctx.arc(boss.x, boss.y, 60, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.font = "80px Orbitron"; ctx.textAlign = "center"; 
+            ctx.fillText("J", boss.x, boss.y + 25);
+            ctx.restore();
+            ctx.fillStyle = "white"; ctx.font = "20px Orbitron"; ctx.fillText("BOSS HP: " + boss.hp, boss.x, boss.y - 80);
+        }
+
+        lanes.forEach((x, i) => drawSword(x, 700, colors[i]));
+
+        projectiles.forEach((p, i) => {
+            p.y -= 15; drawSword(p.x, p.y, p.color);
+            if(boss && Math.hypot(p.x - boss.x, p.y - boss.y) < 60) {
+                boss.hp--; projectiles.splice(i, 1);
+                if(boss.hp <= 0) { boss = null; winner = true; endGame(); }
+            }
+            enemies.forEach((en, ei) => {
+                if(Math.hypot(p.x - en.x, p.y - en.y) < 45) {
+                    en.hp--;
+                    if(en.hp <= 0) {
+                        for(let k=0; k<15; k++) particles.push({ x: en.x, y: en.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, life: 1, color: en.color });
+                        playSound('boom'); score += en.val; enemies.splice(ei, 1);
+                    }
+                    projectiles.splice(i, 1);
+                }
+            });
+            if(p.y < 0) projectiles.splice(i, 1);
+        });
+
+        if(!boss) {
+            enemies.forEach((en, i) => {
+                en.y += en.speed;
+                ctx.fillStyle = en.color; ctx.beginPath(); ctx.moveTo(en.x, en.y-20); ctx.lineTo(en.x+20, en.y); ctx.lineTo(en.x, en.y+20); ctx.lineTo(en.x-20, en.y); ctx.fill();
+                if(en.y > 800) { enemies.splice(i, 1); lives--; }
+            });
+        }
+
+        particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 4, 4); if(p.life <= 0) particles.splice(i, 1); });
+        if(lives > 0 && !winner) requestAnimationFrame(update);
+        else endGame();
+    }
+
+    function endGame() {
+        gameActive = false;
+        if(score > highscore) { highscore = score; localStorage.setItem('hs', highscore); }
+        document.getElementById('ui').style.display = 'block';
+        document.getElementById('titleText').innerText = winner ? "MISSION ACCOMPLISHED" : "GAME OVER";
+        document.getElementById('statusText').innerText = winner ? "MOTHER CRYSTAL DESTROYED" : "CORE FAILURE";
+        document.getElementById('btn').innerText = "RESTART";
+    }
+
+    document.getElementById('btn').onclick = () => {
+        score = 0; lives = 3; boss = null; bossSpawned = false; winner = false; gameActive = true; document.getElementById('ui').style.display = 'none'; update();
+    };
+
+    // Fungsi handle input (Mouse & Touch)
+    function handleInput(clientX) {
+        if(!gameActive) return;
+        const rect = canvas.getBoundingClientRect();
+        const scale = 600 / rect.width;
+        let x = (clientX - rect.left) * scale;
+        let lane = Math.floor(x / 150);
+        if(lane >= 0 && lane < 4) { projectiles.push({ x: lanes[lane], y: 700, color: colors[lane] }); playSound('slash'); }
+    }
+
+    canvas.addEventListener('mousedown', (e) => handleInput(e.clientX));
+    canvas.addEventListener('touchstart', (e) => handleInput(e.touches[0].clientX), {passive: false});
+
+    setInterval(() => { 
+        if(!gameActive || boss || winner) return;
+        let en = { x: lanes[Math.floor(Math.random()*4)], y: -50 };
+        let type = Math.random();
+        if(type < 0.6) { en.color = '#ff2200'; en.speed = 3; en.hp = 1; en.val = 10; }
+        else if(type < 0.85) { en.color = '#00aaff'; en.speed = 6; en.hp = 1; en.val = 25; }
+        else { en.color = '#ffcc00'; en.speed = 2; en.hp = 2; en.val = 50; }
+        enemies.push(en);
+    }, 600);
+</script>
+</body>
+</html>
