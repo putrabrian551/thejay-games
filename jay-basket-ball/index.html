@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+
+<title>JAY BASKETBALL</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Arial,sans-serif;
+-webkit-tap-highlight-color:transparent;
+}
+
+body{
+overflow:hidden;
+background:linear-gradient(to bottom,#6f42c1,#2b1055);
+height:100vh;
+color:#fff;
+}
+
+button{
+cursor:pointer;
+border:none;
+outline:none;
+}
+
+.screen{
+position:absolute;
+inset:0;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+}
+
+.hidden{
+display:none;
+}
+
+.logoBall{
+width:140px;
+height:140px;
+border-radius:50%;
+background:#8a2be2;
+position:relative;
+border:4px solid rgba(255,255,255,.2);
+margin-bottom:20px;
+}
+
+.logoBall::before{
+content:"";
+position:absolute;
+left:50%;
+top:0;
+width:4px;
+height:100%;
+background:#222;
+transform:translateX(-50%);
+}
+
+.logoBall::after{
+content:"";
+position:absolute;
+top:50%;
+left:0;
+width:100%;
+height:4px;
+background:#222;
+transform:translateY(-50%);
+}
+
+.logoBall span{
+position:absolute;
+left:50%;
+top:50%;
+transform:translate(-50%,-50%);
+font-size:70px;
+font-weight:bold;
+color:white;
+}
+
+h1{
+font-size:42px;
+margin-bottom:20px;
+text-align:center;
+}
+
+.menuBtn{
+width:240px;
+padding:14px;
+margin:8px;
+border-radius:14px;
+font-size:18px;
+font-weight:bold;
+background:#fff;
+color:#5b21b6;
+}
+
+.menuBtn:hover{
+transform:scale(1.05);
+}
+
+.panel{
+background:rgba(255,255,255,.12);
+padding:25px;
+border-radius:20px;
+max-width:500px;
+width:90%;
+backdrop-filter:blur(10px);
+}
+
+.panel h2{
+margin-bottom:15px;
+text-align:center;
+}
+
+.panel p{
+line-height:1.8;
+font-size:16px;
+}
+
+canvas{
+position:absolute;
+inset:0;
+}
+
+#hud{
+position:absolute;
+top:10px;
+left:10px;
+right:10px;
+display:none;
+justify-content:space-between;
+gap:10px;
+z-index:10;
+}
+
+.hudBox{
+flex:1;
+background:rgba(0,0,0,.35);
+padding:10px;
+border-radius:12px;
+text-align:center;
+font-weight:bold;
+}
+
+.hudBox span{
+display:block;
+font-size:22px;
+margin-top:4px;
+}
+
+#gameOver{
+position:absolute;
+inset:0;
+display:none;
+justify-content:center;
+align-items:center;
+background:rgba(0,0,0,.75);
+z-index:50;
+}
+
+.gameOverBox{
+background:#24103f;
+padding:30px;
+border-radius:20px;
+width:90%;
+max-width:400px;
+text-align:center;
+}
+
+.gameOverBox h2{
+font-size:40px;
+margin-bottom:20px;
+}
+
+.gameOverBox p{
+margin:10px 0;
+font-size:20px;
+}
+
+.floatScore{
+position:absolute;
+color:#ffd700;
+font-weight:bold;
+font-size:28px;
+pointer-events:none;
+animation:pop .8s forwards;
+}
+
+@keyframes pop{
+0%{
+opacity:1;
+transform:translateY(0);
+}
+100%{
+opacity:0;
+transform:translateY(-60px);
+}
+}
+
+@media(max-width:600px){
+
+h1{
+font-size:32px;
+}
+
+.logoBall{
+width:110px;
+height:110px;
+}
+
+.logoBall span{
+font-size:54px;
+}
+
+.hudBox{
+padding:6px;
+font-size:11px;
+}
+
+.hudBox span{
+font-size:16px;
+}
+
+}
+canvas{
+pointer-events:none;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- MENU -->
+
+<div id="menu" class="screen">
+
+<div class="logoBall">
+<span>J</span>
+</div>
+
+<h1>JAY BASKETBALL</h1>
+
+<p style="
+max-width:500px;
+text-align:center;
+margin-bottom:25px;
+font-size:18px;
+line-height:1.7;
+">
+Shoot the purple J basketball into the hoop.
+Score 20 points for every basket and try to achieve the highest score possible before running out of lives.
+</p>
+
+<button id="startBtn" class="menuBtn">
+START GAME
+</button>
+
+<button id="howBtn" class="menuBtn">
+HOW TO PLAY
+</button>
+
+</div>
+
+<!-- HOW TO -->
+
+<div id="howScreen" class="screen hidden">
+
+<div class="panel">
+
+<h2>HOW TO PLAY</h2>
+
+<p>
+1. Drag the basketball to aim.<br>
+2. Release to shoot.<br>
+3. Get the ball into the hoop.<br>
+4. Every basket gives +10 points.<br>
+5. Missing costs 1 life.<br>
+6. Lose all lives and game over.
+</p>
+
+<br>
+
+<button id="backBtn" class="menuBtn">
+BACK
+</button>
+
+</div>
+
+</div>
+
+<!-- GAME -->
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="hud">
+
+<div class="hudBox">
+Score
+<span id="scoreText">0</span>
+</div>
+
+<div class="hudBox">
+High Score
+<span id="highText">0</span>
+</div>
+
+<div class="hudBox">
+Lives
+<span id="livesText">❤❤❤</span>
+</div>
+
+</div>
+
+<!-- GAME OVER -->
+
+<div id="gameOver">
+
+<div class="gameOverBox">
+
+<h2>GAME OVER</h2>
+
+<p>
+Final Score:
+<span id="finalScore">0</span>
+</p>
+
+<p>
+High Score:
+<span id="finalHigh">0</span>
+</p>
+
+<button id="againBtn" class="menuBtn">
+PLAY AGAIN
+</button>
+
+<button id="menuBtn" class="menuBtn">
+MAIN MENU
+</button>
+
+</div>
+
+</div>
+
+<script>
+
+const canvas =
+document.getElementById("gameCanvas");
+
+const ctx =
+canvas.getContext("2d");
+
+function resize(){
+
+canvas.width=window.innerWidth;
+canvas.height=window.innerHeight;
+
+}
+
+resize();
+window.addEventListener("resize",resize);
+
+const menu =
+document.getElementById("menu");
+
+const howScreen =
+document.getElementById("howScreen");
+
+const hud =
+document.getElementById("hud");
+
+const gameOverScreen =
+document.getElementById("gameOver");
+
+const scoreText =
+document.getElementById("scoreText");
+
+const highText =
+document.getElementById("highText");
+
+const livesText =
+document.getElementById("livesText");
+
+const finalScore =
+document.getElementById("finalScore");
+
+const finalHigh =
+document.getElementById("finalHigh");
+
+let score=0;
+let lives=3;
+
+let highScore=
+localStorage.getItem("jayHighScore")||0;
+
+highText.textContent=highScore;
+
+let gameRunning=false;
+
+let gravity = 0.16;
+
+let dragging=false;
+
+let aimX=0;
+let aimY=0;
+
+let particles=[];
+
+let hoop={};
+
+let ball={};
+canvas.style.pointerEvents="none";
+
+function createBall(){
+
+ball={
+x:canvas.width*.25,
+y:canvas.height*.72,
+r:26,
+vx:0,
+vy:0,
+rotation:0,
+shot:false,
+scored:false
+};
+
+}
+
+function createHoop(){
+
+hoop={
+x:canvas.width*.80,
+y:canvas.height*.22,
+rimWidth:140,
+rimHeight:12
+};
+
+}
+
+createBall();
+createHoop();
+const RIM_HALF = 60;
+
+// ===== SOUND =====
+
+const audioCtx =
+new (window.AudioContext ||
+window.webkitAudioContext)();
+
+function beep(freq,duration){
+
+const osc=
+audioCtx.createOscillator();
+
+const gain=
+audioCtx.createGain();
+
+osc.connect(gain);
+gain.connect(audioCtx.destination);
+
+osc.frequency.value=freq;
+osc.type="sine";
+
+gain.gain.value=.08;
+
+osc.start();
+
+setTimeout(()=>{
+osc.stop();
+},duration);
+
+}
+
+function clickSound(){
+beep(500,80);
+}
+
+function shootSound(){
+beep(250,120);
+}
+
+function scoreSound(){
+beep(800,150);
+}
+
+function missSound(){
+beep(180,180);
+}
+
+function gameOverSound(){
+beep(120,500);
+}
+
+// ===== BUTTONS =====
+
+document
+.getElementById("startBtn")
+.onclick=()=>{
+
+clickSound();
+
+menu.classList.add("hidden");
+
+hud.style.display="flex";
+
+if (audioCtx.state === "suspended") {
+audioCtx.resume();
+}
+
+setTimeout(() => {
+startGame();
+}, 50);
+
+};
+
+document
+.getElementById("howBtn")
+.onclick=()=>{
+
+clickSound();
+
+menu.classList.add("hidden");
+howScreen.classList.remove("hidden");
+
+};
+
+document
+.getElementById("backBtn")
+.onclick=()=>{
+
+clickSound();
+
+howScreen.classList.add("hidden");
+menu.classList.remove("hidden");
+
+};
+
+document
+.getElementById("againBtn")
+.onclick=()=>{
+
+clickSound();
+
+gameOverScreen.style.display="none";
+
+startGame();
+
+};
+
+document
+.getElementById("menuBtn")
+.onclick=()=>{
+
+clickSound();
+
+gameOverScreen.style.display="none";
+
+hud.style.display="none";
+
+menu.classList.remove("hidden");
+
+gameRunning=false;
+
+};
+
+// ===== GAME START =====
+
+function startGame(){
+
+score=0;
+lives=3;
+
+gameRunning=true;
+
+
+scoreText.textContent=score;
+
+updateLives();
+
+createBall();
+
+ball.shot=false;
+ball.scored=false;
+ball.vx=0;
+ball.vy=0;
+
+menu.classList.add("hidden");
+howScreen.classList.add("hidden");
+gameOverScreen.style.display="none";
+
+hud.style.display="flex";
+canvas.style.pointerEvents="auto";
+
+
+}
+
+// ===== LIVES =====
+
+function updateLives(){
+
+let txt="";
+
+for(let i=0;i<lives;i++){
+
+txt+="❤";
+
+}
+
+livesText.textContent=txt;
+
+}
+
+// ===== INPUT =====
+
+function getPos(e){
+
+const rect=
+canvas.getBoundingClientRect();
+
+if(e.touches){
+
+return{
+x:e.touches[0].clientX-rect.left,
+y:e.touches[0].clientY-rect.top
+};
+
+}
+
+return{
+x:e.clientX-rect.left,
+y:e.clientY-rect.top
+};
+
+}
+
+function startDrag(e){
+
+if(!gameRunning) return;
+
+const p=getPos(e);
+
+const dx=p.x-ball.x;
+const dy=p.y-ball.y;
+
+if(
+Math.sqrt(dx*dx+dy*dy)
+<ball.r+20
+&& !ball.shot
+){
+
+dragging=true;
+
+aimX=p.x;
+aimY=p.y;
+
+}
+
+}
+
+function moveDrag(e){
+
+if(!dragging) return;
+
+const p=getPos(e);
+
+aimX=p.x;
+aimY=p.y;
+
+}
+
+function endDrag(){
+
+if(!dragging) return;
+
+dragging=false;
+
+let dx=
+ball.x-aimX;
+
+let dy=
+ball.y-aimY;
+
+ball.vx = dx * 0.16;
+ball.vy = dy * 0.16;
+
+ball.vy -= 9;
+
+
+
+ball.shot=true;
+
+shootSound();
+
+}
+
+canvas.addEventListener(
+"mousedown",
+startDrag
+);
+
+canvas.addEventListener(
+"mousemove",
+moveDrag
+);
+
+window.addEventListener(
+"mouseup",
+endDrag
+);
+
+canvas.addEventListener(
+"touchstart",
+startDrag
+);
+
+canvas.addEventListener(
+"touchmove",
+moveDrag
+);
+
+window.addEventListener(
+"touchend",
+endDrag
+);
+
+// ===== PARTICLES =====
+
+function spawnParticles(x,y){
+
+for(let i=0;i<18;i++){
+
+particles.push({
+
+x,
+y,
+
+vx:(Math.random()-.5)*6,
+
+vy:(Math.random()-.5)*6,
+
+life:40
+
+});
+
+}
+
+}
+
+function updateParticles(){
+
+for(let i=particles.length-1;i>=0;i--){
+
+let p=particles[i];
+
+p.x+=p.vx;
+p.y+=p.vy;
+
+p.life--;
+
+if(p.life<=0){
+
+particles.splice(i,1);
+
+}
+
+}
+
+}
+
+function drawParticles(){
+
+ctx.fillStyle="#ffd700";
+
+particles.forEach(p=>{
+
+ctx.beginPath();
+
+ctx.arc(
+p.x,
+p.y,
+3,
+0,
+Math.PI*2
+);
+
+ctx.fill();
+
+});
+
+}
+
+// ===== SCORE =====
+
+function addScore(){
+
+score+=20;
+
+scoreText.textContent=score;
+
+if(score>highScore){
+
+highScore=score;
+
+localStorage.setItem(
+"jayHighScore",
+highScore
+);
+
+highText.textContent=
+highScore;
+
+}
+
+scoreSound();
+
+spawnParticles(
+hoop.x,
+hoop.y
+);
+
+const pop=
+document.createElement("div");
+
+pop.className=
+"floatScore";
+
+pop.textContent="+10";
+
+pop.style.left=
+hoop.x+"px";
+
+pop.style.top=
+hoop.y+"px";
+
+document.body.appendChild(pop);
+
+setTimeout(()=>{
+
+pop.remove();
+
+},800);
+
+}
+
+// ===== MISS =====
+
+function missShot(){
+
+lives--;
+
+updateLives();
+
+missSound();
+
+if(lives<=0){
+
+endGame();
+
+return;
+
+}
+
+createBall();
+
+}
+
+// ===== GAME OVER =====
+
+function endGame(){
+
+gameRunning=false;
+
+gameOverSound();
+
+finalScore.textContent=
+score;
+
+finalHigh.textContent=
+highScore;
+
+gameOverScreen.style.display=
+"flex";
+
+}// ===== UPDATE BALL PHYSICS =====
+
+function updateBall(){
+
+if(!ball.shot) return;
+
+// gravity
+ball.vy += gravity;
+
+// move
+ball.x += ball.vx;
+ball.y += ball.vy;
+
+// rotate
+ball.rotation += ball.vx * 0.05;
+
+// ground reset (miss)
+if(ball.y > canvas.height + 100){
+
+missShot();
+
+return;
+
+}
+
+
+
+// hoop collision (simple scoring detection)
+
+let dx = ball.x - hoop.x;
+let dy = ball.y - hoop.y;
+
+let dist = Math.sqrt(dx*dx + dy*dy);
+
+// if ball passes through hoop area from above
+let leftRim = hoop.x - RIM_HALF;
+let rightRim = hoop.x + RIM_HALF;
+
+// BACKBOARD COLLISION
+
+let boardX = hoop.x + 70;
+let boardTop = hoop.y - 70;
+let boardBottom = hoop.y + 70;
+
+if(
+ball.x + ball.r > boardX &&
+ball.x - ball.r < boardX + 14 &&
+ball.y > boardTop &&
+ball.y < boardBottom
+){
+
+ball.x = boardX - ball.r;
+ball.vx *= -0.85;
+ball.vy *= 0.95;
+
+}
+
+
+
+
+
+// TABRAKAN RING KIRI
+
+let leftDx = ball.x - leftRim;
+let leftDy = ball.y - hoop.y;
+
+if(
+Math.sqrt(leftDx*leftDx + leftDy*leftDy)
+< ball.r + 6
+){
+ball.vx = -Math.abs(ball.vx) * 0.8;
+}
+
+// TABRAKAN RING KANAN
+
+let rightDx = ball.x - rightRim;
+let rightDy = ball.y - hoop.y;
+
+if(
+Math.sqrt(rightDx*rightDx + rightDy*rightDy)
+< ball.r + 6
+){
+ball.vx = Math.abs(ball.vx) * 0.8;
+}
+
+if(
+!ball.scored &&
+ball.vy > 0 &&
+ball.x > leftRim &&
+ball.x < rightRim &&
+ball.y > hoop.y &&
+ball.y < hoop.y + 20
+){
+
+ball.scored=true;
+
+addScore();
+
+setTimeout(()=>{
+createBall();
+},300);
+
+}
+
+}
+
+
+// ===== DRAW HOOP =====
+
+function drawHoop(){
+
+// backboard
+ctx.fillStyle="#eeeeee";
+ctx.fillRect(
+hoop.x+70,
+hoop.y-70,
+14,
+140
+);
+
+// kotak target
+ctx.strokeStyle="#ff4444";
+ctx.lineWidth=4;
+
+ctx.strokeRect(
+hoop.x+35,
+hoop.y-25,
+45,
+50
+);
+
+// rim
+ctx.strokeStyle="#ff7b00";
+ctx.lineWidth=8;
+
+ctx.beginPath();
+ctx.moveTo(
+hoop.x-60,
+hoop.y
+);
+
+ctx.lineTo(
+hoop.x+60,
+hoop.y
+);
+
+ctx.stroke();
+
+// net
+ctx.strokeStyle="white";
+ctx.lineWidth=2;
+
+for(let i=0;i<=8;i++){
+
+let topX=hoop.x-60+i*15;
+
+ctx.beginPath();
+ctx.moveTo(topX,hoop.y);
+ctx.lineTo(
+hoop.x-40+i*10,
+hoop.y+55
+);
+ctx.stroke();
+
+}
+
+for(let y=15;y<=45;y+=15){
+
+ctx.beginPath();
+ctx.moveTo(
+hoop.x-50+y/3,
+hoop.y+y
+);
+
+ctx.lineTo(
+hoop.x+50-y/3,
+hoop.y+y
+);
+
+ctx.stroke();
+
+}
+
+}
+// ===== DRAW BALL =====
+
+function drawBall(){
+
+ctx.save();
+
+ctx.translate(ball.x,ball.y);
+ctx.rotate(ball.rotation);
+
+// shadow
+ctx.shadowColor="rgba(0,0,0,0.35)";
+ctx.shadowBlur=12;
+ctx.shadowOffsetY=4;
+
+// ball gradient
+let grad=ctx.createRadialGradient(
+-ball.r*0.4,
+-ball.r*0.4,
+2,
+0,
+0,
+ball.r
+);
+
+grad.addColorStop(0,"#c996ff");
+grad.addColorStop(1,"#6f2cff");
+
+ctx.fillStyle=grad;
+
+ctx.beginPath();
+ctx.arc(0,0,ball.r,0,Math.PI*2);
+ctx.fill();
+
+// highlight
+ctx.shadowBlur=0;
+
+ctx.fillStyle="rgba(255,255,255,0.25)";
+ctx.beginPath();
+ctx.arc(
+-ball.r*0.35,
+-ball.r*0.35,
+ball.r*0.18,
+0,
+Math.PI*2
+);
+ctx.fill();
+
+// outline
+ctx.strokeStyle="rgba(255,255,255,0.25)";
+ctx.lineWidth=2;
+
+ctx.beginPath();
+ctx.arc(0,0,ball.r,0,Math.PI*2);
+ctx.stroke();
+
+// basketball lines
+ctx.strokeStyle="#2b1055";
+ctx.lineWidth=3;
+
+ctx.beginPath();
+ctx.moveTo(-ball.r,0);
+ctx.lineTo(ball.r,0);
+ctx.stroke();
+
+ctx.beginPath();
+ctx.moveTo(0,-ball.r);
+ctx.lineTo(0,ball.r);
+ctx.stroke();
+
+// J logo
+ctx.fillStyle="#fff";
+ctx.font="bold 30px Arial";
+ctx.textAlign="center";
+ctx.textBaseline="middle";
+ctx.fillText("J",0,0);
+
+ctx.restore();
+
+}
+
+// ===== AIM LINE =====
+
+function drawAim(){
+
+if(!dragging) return;
+
+// garis arah
+ctx.strokeStyle="rgba(255,255,255,0.5)";
+ctx.lineWidth=3;
+
+ctx.beginPath();
+ctx.moveTo(ball.x,ball.y);
+ctx.lineTo(aimX,aimY);
+ctx.stroke();
+
+// prediksi lintasan bola
+let tx=ball.x;
+let ty=ball.y;
+
+let tvx=(ball.x-aimX)*0.16;
+let tvy=(ball.y-aimY)*0.16-9;
+
+for(let i=0;i<100;i++){
+
+    tvy+=gravity;
+
+    tx+=tvx;
+    ty+=tvy;
+
+    ctx.fillStyle="rgba(255,255,255,0.5)";
+
+    ctx.beginPath();
+    ctx.arc(tx,ty,2,0,Math.PI*2);
+    ctx.fill();
+}
+
+}
+
+// ===== MAIN LOOP =====
+
+function loop(){
+
+ctx.clearRect(
+0,0,
+canvas.width,
+canvas.height
+);
+
+if(gameRunning){
+
+updateBall();
+updateParticles();
+
+drawHoop();
+drawBall();
+drawParticles();
+drawAim();
+
+}
+
+requestAnimationFrame(loop);
+
+}
+
+loop();
+
+</script>
+
+</body>
+</html>
+
+
