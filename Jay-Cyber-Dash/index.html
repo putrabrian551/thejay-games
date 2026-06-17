@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>Jay Cyber Dash</title>
+    <style>
+        :root {
+            --bg-dark: #010105;
+            --hot-pink: #ff0055;
+            --cyber-cyan: #00f0ff;
+            --neon-purple: #b026ff;
+            --pure-white: #ffffff;
+            --panel-bg: rgba(4, 4, 18, 0.95);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--pure-white);
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* UKURAN BINGKAI JAUH LEBIH BESAR & MEGAH */
+        .arcade-frame {
+            position: relative;
+            background: var(--panel-bg);
+            padding: 45px 40px;
+            border: 6px double var(--cyber-cyan);
+            box-shadow: 0 0 60px rgba(0, 240, 255, 0.55), inset 0 0 35px rgba(0, 240, 255, 0.2);
+            max-width: 600px;
+            width: 95%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+
+        /* Aksesoris Sudut Cyberpunk Dipertegas */
+        .arcade-frame::before, .arcade-frame::after {
+            content: '';
+            position: absolute;
+            width: 35px;
+            height: 35px;
+            border: 5px solid var(--hot-pink);
+        }
+        .arcade-frame::before { top: -10px; left: -10px; border-right: none; border-bottom: none; }
+        .arcade-frame::after { bottom: -10px; right: -10px; border-left: none; border-top: none; }
+
+        h1 {
+            color: var(--cyber-cyan);
+            font-size: 2.8rem;
+            margin: 0 0 5px 0;
+            text-shadow: 0 0 18px rgba(0, 240, 255, 0.8);
+            letter-spacing: 5px;
+            font-weight: bold;
+        }
+
+        p.subtitle {
+            color: var(--hot-pink);
+            font-weight: bold;
+            margin: 0 0 30px 0;
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .instructions {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 22px;
+            text-align: left;
+            margin-bottom: 35px;
+            border: 2px dashed var(--hot-pink);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .instructions h3 {
+            margin-top: 0;
+            color: var(--hot-pink);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .instructions ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+
+        .btn {
+            background: transparent;
+            color: var(--cyber-cyan);
+            border: 3px solid var(--cyber-cyan);
+            padding: 16px 55px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+            text-transform: uppercase;
+            -webkit-tap-highlight-color: transparent;
+            letter-spacing: 2px;
+        }
+
+        .btn:hover, .btn:active {
+            background: var(--cyber-cyan);
+            color: var(--bg-dark);
+            box-shadow: 0 0 35px rgba(0, 240, 255, 0.9);
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 18px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-bottom: 3px solid rgba(0, 240, 255, 0.4);
+            padding-bottom: 8px;
+        }
+
+        .stats-bar span {
+            color: var(--hot-pink);
+        }
+
+        canvas {
+            background-color: #010103;
+            border: 3px solid var(--hot-pink);
+            display: block;
+            max-width: 100%;
+            height: auto;
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.4);
+        }
+
+        .mobile-controls {
+            display: none;
+            width: 100%;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 25px;
+        }
+
+        .touch-btn {
+            background: rgba(255, 0, 85, 0.05);
+            border: 2px solid var(--hot-pink);
+            color: var(--hot-pink);
+            padding: 20px;
+            font-weight: bold;
+            font-size: 1.3rem;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            font-family: inherit;
+        }
+
+        .touch-btn:active {
+            background: var(--hot-pink);
+            color: var(--pure-white);
+            box-shadow: 0 0 25px var(--hot-pink);
+        }
+
+        @media (pointer: coarse) {
+            .mobile-controls {
+                display: grid;
+            }
+        }
+
+        .result-box {
+            background: rgba(0, 0, 0, 0.75);
+            padding: 30px;
+            margin-bottom: 35px;
+            width: 100%;
+            box-sizing: border-box;
+            border: 2px double var(--hot-pink);
+        }
+
+        .result-box h2 {
+            margin-top: 0;
+            font-size: 2rem;
+            color: var(--hot-pink);
+            text-shadow: 0 0 12px rgba(255, 0, 85, 0.8);
+        }
+
+        .new-high {
+            color: #ffff00;
+            font-weight: bold;
+            animation: flash 0.8s infinite alternate;
+            margin-top: 15px;
+            display: none;
+        }
+
+        @keyframes flash { from { opacity: 1; } to { opacity: 0.3; } }
+    </style>
+</head>
+<body>
+
+    <div class="arcade-frame">
+        <div id="menu-screen" class="screen active">
+            <h1>JAY CYBER DASH</h1>
+            <p class="subtitle">// ULTRA RUNNER V3.0</p>
+            <div class="instructions">
+                <h3>[SYSTEM RULES]</h3>
+                <ul>
+                    <li>Control the Core Triangle down a 3-lane grid.</li>
+                    <li>Avoid incoming Hot Pink barriers. Speed increases.</li>
+                    <li>**PC:** Press **Left/Right Arrows** or **A/D Keys**.</li>
+                    <li>**MOBILE:** Tap the **LEFT / RIGHT buttons** below the screen.</li>
+                </ul>
+            </div>
+            <button class="btn" onclick="startGame(event)" ontouchstart="startGame(event)">INITIALIZE DRIVE</button>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <h1>JAY CYBER DASH</h1>
+            <p class="subtitle">// RACING MODE</p>
+            <div class="stats-bar">
+                <div>SCORE: <span id="score">0</span></div>
+                <div>BEST: <span id="high-score">0</span></div>
+            </div>
+            
+            <canvas id="dashCanvas" width="340" height="400"></canvas>
+            
+            <div class="mobile-controls">
+                <div class="touch-btn" id="leftBtn">&lt; MOVE LEFT</div>
+                <div class="touch-btn" id="rightBtn">MOVE RIGHT &gt;</div>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="screen">
+            <h1>JAY CYBER DASH</h1>
+            <div class="result-box">
+                <h2>SYSTEM CRASH</h2>
+                <p>Core damaged by light barrier collision.</p>
+                <div style="font-size: 1.4rem;">DISTANCE: <span id="fail-score" style="color: var(--cyber-cyan); font-weight: bold;">0</span>m</div>
+                <div id="fail-high-msg" class="new-high">>> NEW RECORD BROKEN! &lt;&lt;</div>
+            </div>
+            <button class="btn" onclick="backToMenu(event)" ontouchstart="backToMenu(event)">REBOOT SYSTEM</button>
+        </div>
+    </div>
+
+    <script>
+        const menuScreen = document.getElementById('menu-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        
+        const canvas = document.getElementById("dashCanvas");
+        const ctx = canvas.getContext("2d");
+        
+        const scoreDisplay = document.getElementById('score');
+        const highScoreDisplay = document.getElementById('high-score');
+        
+        let score = 0;
+        let highScore = localStorage.getItem('jayDashHighScoreV30') || 0;
+        highScoreDisplay.textContent = highScore;
+
+        let currentLane = 1; 
+        let targetLane = 1;
+        let laneWidth = canvas.width / 3;
+        
+        let playerY = canvas.height - 65;
+        let playerX = laneWidth * currentLane + laneWidth / 2;
+        let playerSize = 18; // Sedikit diperbesar agar huruf J terlihat mantap
+
+        let obstacles = [];
+        let gameSpeed = 3.8;
+        let spawnTimer = 0;
+        let spawnInterval = 90;
+        
+        let gameLoopId;
+        let audioCtx = null;
+        let isGameRunning = false;
+
+        document.addEventListener("keydown", keyDownHandler, false);
+
+        document.getElementById('leftBtn').addEventListener('touchstart', (e) => { e.preventDefault(); movePlayer(-1); }, {passive: false});
+        document.getElementById('rightBtn').addEventListener('touchstart', (e) => { e.preventDefault(); movePlayer(1); }, {passive: false});
+        
+        document.getElementById('leftBtn').addEventListener('mousedown', () => { if(isGameRunning) movePlayer(-1); });
+        document.getElementById('rightBtn').addEventListener('mousedown', () => { if(isGameRunning) movePlayer(1); });
+
+ function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+ function playSound(type) {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gainNode = audioCtx.createGain();
+                osc.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                if (type === 'move') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(550, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(950, audioCtx.currentTime + 0.07);
+                    gainNode.gain.setValueAtTime(0.08, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.07);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.07);
+                } 
+                else if (type === 'crash') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(170, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(30, audioCtx.currentTime + 0.42);
+                    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.42);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.42);
+                }
+            } catch(e) { }
+        }
+
+ function keyDownHandler(e) {
+            if (!isGameRunning) return;
+            if (e.key === "Left" || e.key === "ArrowLeft" || e.key.toLowerCase() === "a") {
+                movePlayer(-1);
+            } else if (e.key === "Right" || e.key == "ArrowRight" || e.key.toLowerCase() === "d") {
+                movePlayer(1);
+            }
+        }
+
+  function movePlayer(dir) {
+            if (!isGameRunning) return;
+            targetLane += dir;
+            if (targetLane < 0) targetLane = 0;
+            if (targetLane > 2) targetLane = 2;
+            
+            if (targetLane !== currentLane) {
+                currentLane = targetLane;
+                playSound('move');
+            }
+        }
+
+        function changeScreen(screenToShow) {
+            menuScreen.classList.remove('active');
+            gameScreen.classList.remove('active');
+            gameOverScreen.classList.remove('active');
+            screenToShow.classList.add('active');
+        }
+
+        function initGameVariables() {
+            score = 0;
+            scoreDisplay.textContent = score;
+            currentLane = 1;
+            targetLane = 1;
+            gameSpeed = 3.8;
+            spawnTimer = 0;
+            obstacles = [];
+            playerX = laneWidth * currentLane + laneWidth / 2;
+        }
+
+        function startGame(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            initAudio();
+            if (isGameRunning) return;
+            
+            isGameRunning = true;
+            changeScreen(gameScreen);
+            initGameVariables();
+            draw();
+        }
+
+        function drawGridLines() {
+            ctx.strokeStyle = "rgba(0, 240, 255, 0.07)";
+            ctx.lineWidth = 1.5;
+            for (let i = 1; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(i * laneWidth, 0);
+                ctx.lineTo(i * laneWidth, canvas.height);
+                ctx.stroke();
+            }
+        }
+
+        function drawPlayer() {
+            let desiredX = laneWidth * currentLane + laneWidth / 2;
+            playerX += (desiredX - playerX) * 0.25; 
+
+            ctx.save();
+            
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = "#b026ff";
+            
+            
+            ctx.fillStyle = "#b026ff";
+            ctx.beginPath();
+            ctx.moveTo(playerX, playerY - playerSize);
+            ctx.lineTo(playerX - playerSize, playerY + playerSize);
+            ctx.lineTo(playerX + playerSize, playerY + playerSize);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "#ffffff";
+            ctx.stroke();
+
+            
+            ctx.shadowBlur = 0; 
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 15px 'Courier New', monospace";
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("J", playerX, playerY + 4);
+
+            ctx.restore();
+        }
+
+        function drawObstacles() {
+            spawnTimer++;
+            if (spawnTimer >= spawnInterval) {
+                spawnTimer = 0;
+                let randomLane = Math.floor(Math.random() * 3);
+                obstacles.push({
+                    x: randomLane * laneWidth + 14,
+                    y: -25,
+                    w: laneWidth - 28,
+                    h: 18
+                });
+                
+                if (gameSpeed < 9.5) gameSpeed += 0.15;
+                if (spawnInterval > 45) spawnInterval -= 1;
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let o = obstacles[i];
+                o.y += gameSpeed;
+
+                ctx.save();
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = "#ff0055";
+                
+                ctx.fillStyle = "var(--hot-pink)";
+                ctx.beginPath();
+                ctx.roundRect(o.x, o.y, o.w, o.h, 5);
+                ctx.fill();
+                
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = "#ffffff";
+                ctx.stroke();
+                ctx.restore();
+
+                if (o.y > canvas.height) {
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    scoreDisplay.textContent = score;
+                    continue;
+                }
+
+                if (o.y + o.h >= playerY - playerSize && o.y <= playerY + playerSize) {
+                    let pLeft = playerX - playerSize + 3;
+                    let pRight = playerX + playerSize - 3;
+                    let oRight = o.x + o.w;
+
+                    if (pRight >= o.x && pLeft <= oRight) {
+                        cancelAnimationFrame(gameLoopId);
+                        isGameRunning = false;
+                        playSound('crash');
+                        endGame();
+                        return;
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            if (!isGameRunning) return;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawGridLines();
+            drawObstacles();
+            drawPlayer();
+
+            gameLoopId = requestAnimationFrame(draw);
+        }
+
+        function endGame() {
+            const failScoreDisplay = document.getElementById('fail-score');
+            const failHighMsg = document.getElementById('fail-high-msg');
+            
+            failScoreDisplay.textContent = score;
+            failHighMsg.style.display = 'none';
+
+            if (score > parseInt(highScore)) {
+                highScore = score;
+                localStorage.setItem('jayDashHighScoreV30', highScore);
+                highScoreDisplay.textContent = highScore;
+                failHighMsg.style.display = 'block';
+            }
+            
+            changeScreen(gameOverScreen);
+        }
+
+
+        function backToMenu(e) {
+            if (e) e.preventDefault();
+            initAudio();
+            changeScreen(menuScreen);
+        }
+    </script>
+</body>
+</html>
