@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jay Network - Catch the Animals</title>
+    <style>
+        :root {
+            --bg-color: #120024;
+            --main-purple: #9d4edd;
+            --bright-neon: #e0aaff;
+            --button-color: #c77dff;
+            --text-light: #ffffff;
+        }
+               body {
+            background-color: var(--bg-color);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }  
+        .game-container {
+            text-align: center;
+            background: rgba(157, 78, 221, 0.1);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 0 30px rgba(199, 125, 255, 0.3);
+            border: 2px solid var(--main-purple);
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+        }
+
+        h1 {
+            color: var(--bright-neon);
+            font-size: 2.5rem;
+            margin-top: 0;
+            margin-bottom: 5px;
+            text-shadow: 0 0 10px rgba(224, 170, 255, 0.8);
+            letter-spacing: 2px;
+        }
+
+        p.subtitle {
+            color: var(--button-color);
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+
+        
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        
+        .instructions {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 20px;
+            border-radius: 10px;
+            text-align: left;
+            margin-bottom: 25px;
+            border-left: 4px solid var(--button-color);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .instructions h3 {
+            margin-top: 0;
+            color: var(--bright-neon);
+        }
+
+        .instructions ul {
+            padding-left: 20px;
+            margin-bottom: 0;
+        }
+
+        .btn {
+            background-color: var(--main-purple);
+            color: white;
+            border: none;
+            padding: 12px 35px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(157, 78, 221, 0.4);
+        }
+
+        .btn:hover {
+            background-color: var(--button-color);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(199, 125, 255, 0.6);
+        }
+
+        
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px 0;
+            border-radius: 10px;
+        }
+
+        .stats-bar span {
+            color: var(--bright-neon);
+        }
+
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+  .hole {
+            background: #240046;
+            height: 100px;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            border: 3px solid #3c096c;
+            box-shadow: inset 0 10px 10px rgba(0,0,0,0.5);
+       }
+
+     
+  .mole {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: radial-gradient(circle, #ff007f, var(--main-purple));
+            border-radius: 50% 50% 0 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2.7rem;
+            cursor: pointer;
+            transition: top 0.12s ease;
+        }
+
+        .mole.up {
+            top: 0;
+        }
+
+        
+        @keyframes hitEffect {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.8); background: #00ffff; }
+            100% { transform: scale(1); }
+        }
+
+        .mole.hit {
+            animation: hitEffect 0.2s ease;
+        }
+
+        
+        .game-over-box {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px dashed #ff007f;
+            margin-bottom: 25px;
+            width: 85%;
+            box-sizing: border-box;
+        }
+
+        .game-over-box h2 {
+            color: #ff007f;
+            margin-top: 0;
+            text-shadow: 0 0 10px rgba(255, 0, 127, 0.6);
+        }
+
+        .final-score {
+            font-size: 1.5rem;
+            margin: 10px 0;
+        }
+
+        .new-record {
+            color: #00ffff;
+            font-weight: bold;
+            animation: blink 0.8s infinite alternate;
+            margin-top: 10px;
+            display: none;
+        }
+
+        @keyframes blink {
+            from { opacity: 1; }
+            to { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-container">
+        <h1>JAY NETWORK</h1>
+        <p class="subtitle">👾 Project Network Maintenance 👾</p>
+
+        <div id="menu-screen" class="screen active">
+            <div class="instructions">
+                <h3>How to Play:</h3>
+                <ul>
+                    <li>The system is experiencing a glitch, causing wild animals (<span style="font-size: 1.2rem;">🐹</span>) to pop up inside the server cores!</li>
+                    <li>**Click or Tap** the animals as fast as you can to clear the network before they hide.</li>
+                    <li>Each successful catch rewards you with **+10 Score**.</li>
+                    <li>You only have **30 Seconds** to achieve the highest score!</li>
+                </ul>
+            </div>
+            <button class="btn" onclick="startGame()">START GAME</button>
+        </div>
+
+        <div id="game-screen" class="screen">
+            <div class="stats-bar">
+                <div>Time: <span id="time-left">30</span>s</div>
+                <div>Score: <span id="score">0</span></div>
+                <div>High Score: <span id="high-score">0</span></div>
+            </div>
+
+            <div class="grid">
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+                <div class="hole"><div class="mole" onclick="whack(this)">🐹</div></div>
+            </div>
+        </div>
+
+        <div id="game-over-screen" class="screen">
+            <div class="game-over-box">
+                <h2>GAME OVER</h2>
+                <p>Time's up! The network has been stabilized.</p>
+                <div class="final-score">Your Score: <span id="final-score-val" style="color: var(--bright-neon); font-weight: bold;">0</span></div>
+                <div id="new-record-msg" class="new-record">🎉 NEW HIGH SCORE! 🎉</div>
+            </div>
+            <button class="btn" onclick="backToMenu()">PLAY AGAIN</button>
+        </div>
+
+    </div>
+
+    <script>
+        const menuScreen = document.getElementById('menu-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+        
+        const scoreDisplay = document.getElementById('score');
+        const highScoreDisplay = document.getElementById('high-score');
+        const timeDisplay = document.getElementById('time-left');
+        const finalScoreVal = document.getElementById('final-score-val');
+        const newRecordMsg = document.getElementById('new-record-msg');
+        const moles = document.querySelectorAll('.mole');
+
+        let score = 0;
+        let highScore = localStorage.getItem('jayHighScoreAnimal') || 0;
+        let timeLeft = 30;
+        let lastHole;
+        let timeUp = false;
+        let countdownTimer;
+        let moleTimer;
+
+        
+        highScoreDisplay.textContent = highScore;
+
+        function changeScreen(screenToShow) {
+            menuScreen.classList.remove('active');
+            gameScreen.classList.remove('active');
+            gameOverScreen.classList.remove('active');
+
+            screenToShow.classList.add('active');
+        }
+
+        function randomTime(min, max) {
+            return Math.round(Math.random() * (max - min) + min);
+        }
+
+        function randomHole(moles) {
+            const idx = Math.floor(Math.random() * moles.length);
+            const hole = moles[idx];
+            if (hole === lastHole) {
+                return randomHole(moles);
+            }
+            lastHole = hole;
+            return hole;
+        }
+
+        function peep() {
+            const time = randomTime(550, 1100);
+            const mole = randomHole(moles);
+            mole.classList.add('up');
+
+            moleTimer = setTimeout(() => {
+                mole.classList.remove('up');
+                mole.classList.remove('hit');
+                if (!timeUp) peep();
+            }, time);
+        }
+
+        function startGame() {
+            changeScreen(gameScreen);
+
+            
+            score = 0;
+            timeLeft = 30;
+            timeUp = false;
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            newRecordMsg.style.display = 'none';
+
+            peep();
+
+            
+            countdownTimer = setInterval(() => {
+                timeLeft--;
+                timeDisplay.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(countdownTimer);
+                    clearTimeout(moleTimer);
+                    timeUp = true;
+                    endGame(); // Memanggil fungsi game over
+                }
+            }, 1000);
+        }
+
+        function whack(mole) {
+            if (!mole.classList.contains('up') || mole.classList.contains('hit')) return;
+
+            mole.classList.add('hit');
+            score += 10;
+            scoreDisplay.textContent = score;
+
+            setTimeout(() => {
+                mole.classList.remove('up');
+            }, 130);
+        }
+
+        function endGame() {
+            // hiden animal hamster so cute
+            moles.forEach(m => m.classList.remove('up'));
+
+            // skor akhr
+            finalScoreVal.textContent = score;
+
+            // berfikir high score
+            if (score > parseInt(highScore)) {
+                highScore = score;
+                localStorage.setItem('jayHighScoreAnimal', highScore);
+                highScoreDisplay.textContent = highScore;
+                newRecordMsg.style.display = 'block'; // Banner New Record menyala
+            }
+
+            // Pindah aja ke game
+            changeScreen(gameOverScreen);
+        }
+
+        function backToMenu() {
+            changeScreen(menuScreen);
+        }
+    </script>
+</body>
+</html>
