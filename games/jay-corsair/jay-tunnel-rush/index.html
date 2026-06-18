@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>Jay Tunnel Rush</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#060012;font-family:Arial,sans-serif;touch-action:none;user-select:none}
+canvas{display:block;width:100vw;height:100vh;background:#060012}
+#menu{position:fixed;inset:0;background:rgba(7,0,22,.78);display:flex;align-items:center;justify-content:center;z-index:10}
+.card{width:min(92vw,470px);padding:24px;border-radius:24px;text-align:center;color:white;background:linear-gradient(180deg,#3a007a,#10002d);border:2px solid #b84cff;box-shadow:0 0 35px rgba(184,76,255,.45)}
+h1{font-size:42px;margin-bottom:12px;text-shadow:0 0 22px #b84cff}
+p{color:#dfcaff;line-height:1.5;margin:12px 0 20px}
+button{border:0;border-radius:999px;padding:14px 28px;font-weight:900;font-size:16px;color:#230038;background:linear-gradient(90deg,#ffd83d,#b84cff,#45e9ff)}
+#hint{position:fixed;left:50%;bottom:15px;transform:translateX(-50%);color:#ead8ff;background:rgba(35,0,75,.6);border:1px solid rgba(184,76,255,.65);border-radius:999px;padding:9px 14px;font-size:12px;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="menu">
+  <div class="card">
+    <h1>🚀 JAY TUNNEL</h1>
+    <p>Move the JAY rocket through the neon tunnel. Avoid red gates and collect JAY orbs.</p>
+    <button id="start">START RUSH</button>
+  </div>
+</div>
+<div id="hint">DRAG LEFT / RIGHT TO MOVE</div>
+
+<script>
+const canvas=document.getElementById("game");
+const ctx=canvas.getContext("2d");
+const menu=document.getElementById("menu");
+const startBtn=document.getElementById("start");
+
+let w,h,run=false,frame=0,score=0,lives=3,best=Number(localStorage.getItem("jay_tunnel_best")||0);
+let player={x:0,y:0,r:22,targetX:0};
+let obstacles=[],orbs=[],stars=[],parts=[],speed=4;
+
+function rand(a,b){return Math.random()*(b-a)+a}
+function resize(){
+  w=innerWidth;h=innerHeight;canvas.width=w;canvas.height=h;
+  player.x=w/2;player.targetX=w/2;player.y=h-110;
+  stars=[];for(let i=0;i<120;i++)stars.push({x:rand(0,w),y:rand(0,h),r:rand(.5,2),s:rand(.5,2)});
+}
+function reset(){
+  run=true;frame=0;score=0;lives=3;speed=4;obstacles=[];orbs=[];parts=[];
+  player.x=w/2;player.targetX=w/2;
+  menu.style.display="none";
+}
+startBtn.onclick=reset;
+
+addEventListener("pointermove",e=>{player.targetX=e.clientX});
+addEventListener("pointerdown",e=>{if(e.target!==startBtn)player.targetX=e.clientX});
+addEventListener("keydown",e=>{if(e.key==="ArrowLeft")player.targetX-=45;if(e.key==="ArrowRight")player.targetX+=45});
+
+function spawnObstacle(){
+  const gap=120;
+  const gx=rand(70,w-70);
+  obstacles.push({x:gx,y:-45,gap,w:62,h:34,vy:speed+rand(0,1.2)});
+}
+function spawnOrb(){
+  orbs.push({x:rand(45,w-45),y:-30,r:15,vy:speed+rand(.5,1.5)});
+}
+function burst(x,y,c,n){
+  for(let i=0;i<n;i++)parts.push({x,y,vx:rand(-3,3),vy:rand(-3,3),r:rand(2,5),life:rand(18,34),c});
+}
+function drawBg(){
+  const g=ctx.createRadialGradient(w/2,h*.55,20,w/2,h*.55,Math.max(w,h));
+  g.addColorStop(0,"#310070");g.addColorStop(.5,"#15003a");g.addColorStop(1,"#05000f");
+  ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+
+  ctx.strokeStyle="rgba(69,233,255,.14)";
+  ctx.lineWidth=2;
+  for(let i=0;i<10;i++){
+    let x=i*w/9;
+    ctx.beginPath();
+    ctx.moveTo(w/2,h*.38);
+    ctx.lineTo(x,h);
+    ctx.stroke();
+  }
+
+  stars.forEach(s=>{
+    s.y+=s.s+speed*.2;
+    if(s.y>h){s.y=0;s.x=rand(0,w)}
+    ctx.fillStyle="rgba(255,255,255,.55)";
+    ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();
+  });
+}
+function drawPlayer(){
+  player.x+=(player.targetX-player.x)*.18;
+  player.x=Math.max(28,Math.min(w-28,player.x));
+  ctx.save();
+  ctx.translate(player.x,player.y);
+  ctx.shadowColor="#b84cff";ctx.shadowBlur=22;
+  ctx.fillStyle="#7d28ff";
+  ctx.beginPath();
+  ctx.moveTo(0,-30);ctx.quadraticCurveTo(27,-5,16,28);ctx.lineTo(-16,28);ctx.quadraticCurveTo(-27,-5,0,-30);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.strokeStyle="#e6c4ff";ctx.lineWidth=3;ctx.stroke();
+  ctx.fillStyle="#fff";ctx.font="900 22px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("J",0,5);
+  ctx.fillStyle="#ff8cff";
+  ctx.beginPath();ctx.moveTo(-10,28);ctx.lineTo(0,48+Math.sin(frame*.4)*8);ctx.lineTo(10,28);ctx.fill();
+  ctx.restore();
+}
+function drawObstacle(o){
+  ctx.shadowColor="#ff3d77";ctx.shadowBlur=16;
+  ctx.fillStyle="#ff3d77";
+  round(0,o.y,o.x-o.gap/2,o.h,8);ctx.fill();
+  round(o.x+o.gap/2,o.y,w-(o.x+o.gap/2),o.h,8);ctx.fill();
+  ctx.shadowBlur=0;
+  ctx.fillStyle="#fff";ctx.font="900 16px Arial";ctx.textAlign="center";
+  ctx.fillText("FIREWALL",o.x,o.y+23);
+}
+function drawOrb(o){
+  ctx.shadowColor="#ffd83d";ctx.shadowBlur=16;
+  ctx.fillStyle="#ffd83d";ctx.beginPath();ctx.arc(o.x,o.y,o.r,0,Math.PI*2);ctx.fill();
+  ctx.shadowBlur=0;ctx.strokeStyle="#ff9d00";ctx.lineWidth=4;ctx.stroke();
+  ctx.fillStyle="#704400";ctx.font="900 17px Arial";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillText("J",o.x,o.y+1);
+}
+function round(x,y,ww,hh,r){
+  ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+ww-r,y);ctx.quadraticCurveTo(x+ww,y,x+ww,y+r);
+  ctx.lineTo(x+ww,y+hh-r);ctx.quadraticCurveTo(x+ww,y+hh,x+ww-r,y+hh);
+  ctx.lineTo(x+r,y+hh);ctx.quadraticCurveTo(x,y+hh,x,y+hh-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+}
+function drawHud(){
+  ctx.fillStyle="#fff";ctx.font="900 24px Arial";ctx.textAlign="left";ctx.shadowColor="#b84cff";ctx.shadowBlur=12;
+  ctx.fillText("SCORE "+score,22,42);
+  ctx.fillStyle="#ff6aa2";ctx.fillText("❤ "+lives,22,74);
+  ctx.textAlign="right";ctx.fillStyle="#45e9ff";ctx.fillText("BEST "+best,w-22,42);
+  ctx.shadowBlur=0;
+}
+function drawParts(){
+  parts.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/34);ctx.fillStyle=p.c;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1});
+}
+function update(){
+  frame++;speed+=.002;
+  if(frame%70===0)spawnObstacle();
+  if(frame%55===0)spawnOrb();
+
+  obstacles.forEach(o=>o.y+=o.vy);
+  orbs.forEach(o=>o.y+=o.vy);
+
+  obstacles=obstacles.filter(o=>{
+    const hitY=player.y-player.r<o.y+o.h&&player.y+player.r>o.y;
+    const safe=player.x>o.x-o.gap/2&&player.x<o.x+o.gap/2;
+    if(hitY&&!safe){
+      lives--;burst(player.x,player.y,"#ff3d77",28);
+      if(lives<=0)gameOver();
+      return false;
+    }
+    if(o.y>h+50){score+=5;if(score>best){best=score;localStorage.setItem("jay_tunnel_best",best)}return false}
+    return true;
+  });
+
+  orbs=orbs.filter(o=>{
+    if(Math.hypot(player.x-o.x,player.y-o.y)<player.r+o.r){
+      score+=20;burst(o.x,o.y,"#ffd83d",20);
+      if(score>best){best=score;localStorage.setItem("jay_tunnel_best",best)}
+      return false;
+    }
+    return o.y<h+40;
+  });
+
+  parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life--;p.vx*=.97;p.vy*=.97});
+  parts=parts.filter(p=>p.life>0);
+}
+function gameOver(){
+  run=false;
+  menu.style.display="flex";
+  menu.innerHTML='<div class="card"><h1>GAME OVER</h1><p>Score: <b>'+score+'</b><br>Best: <b>'+best+'</b></p><button onclick="location.reload()">PLAY AGAIN</button></div>';
+}
+function loop(){
+  drawBg();obstacles.forEach(drawObstacle);orbs.forEach(drawOrb);drawPlayer();drawParts();drawHud();
+  if(run)update();else frame++;
+  requestAnimationFrame(loop);
+}
+addEventListener("resize",resize);resize();loop();
+</script>
+</body>
+</html>
