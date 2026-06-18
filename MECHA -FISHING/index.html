@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Alien Mecha Fishing: Overdrive</title>
+    <style>
+        body { 
+            margin: 0; 
+            background: #051012; 
+            color: #fff; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            overflow: hidden; 
+            touch-action: none; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+        }
+        #gameCanvas { 
+            background: #0a1f24; 
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.2);
+            cursor: pointer; 
+        }
+        #ui { 
+            position: absolute; 
+            text-align: center; 
+            pointer-events: none; 
+            z-index: 10;
+            width: 100%;
+        }
+        .hidden { display: none !important; }
+        .box {
+            background: rgba(10, 31, 36, 0.95);
+            border: 2px solid #00ffcc;
+            padding: 35px;
+            display: inline-block;
+            border-radius: 16px;
+            box-shadow: 0 0 40px rgba(0, 255, 204, 0.4);
+            pointer-events: auto;
+            max-width: 85%;
+        }
+        h1 { 
+            color: #ffaa00; 
+            font-size: 38px; 
+            margin: 0 0 12px 0; 
+            text-shadow: 0 0 15px #ff5500; 
+            letter-spacing: 3px;
+        }
+        p { margin: 12px 0; color: #00ffcc; font-size: 16px; line-height: 1.5; }
+        button { 
+            margin-top: 25px;
+            padding: 16px 45px; 
+            font-size: 18px; 
+            font-weight: bold;
+            background: #ff5500; 
+            border: none; 
+            color: white; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            box-shadow: 0 0 18px #ff5500;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        button:active {
+            transform: scale(0.96);
+            box-shadow: 0 0 8px #ff5500;
+        }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <div id="menu" class="box">
+        <h1>MECHA FISHING</h1>
+        <p style="color: #ffcc00; font-weight: bold;">⚡ OVERDRIVE EDITION ⚡</p>
+        <p><strong>HOW TO PLAY:</strong><br>Drag to control the magnetic neon hook.<br>Catch Alien Mecha-Fish deep in the ocean!</p>
+        <p style="font-size: 14px; color: #00ffcc;">🟢 Catch Green Cores for 2X DOUBLE SCORE Mode!<br>🔴 Avoid Plasma Mines to survive.</p>
+        <button onclick="startGame()">LAUNCH POD</button>
+    </div>
+    <div id="gameover" class="box hidden">
+        <h1 style="color: #ff3333; text-shadow: 0 0 15px #ff3333;">SYSTEM CRASH</h1>
+        <p id="finalScore" style="font-size: 26px; font-weight: bold; color: #ffaa00;">Bounty: 0</p>
+        <p id="bestScore" style="font-size: 16px; color: #00ffcc;"></p>
+        <button onclick="startGame()">REBOOT SYSTEM</button>
+    </div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let audioCtx = null;
+
+    // Game Core State
+    let hook, fishes, particles, score, highscore, gameRunning;
+    let overdriveTimer = 0; // Durasi mode overdrive dalam hitungan frame
+    
+    highscore = localStorage.getItem('mecha_fish_v2_hs') || 0;
+    gameRunning = false;
+
+    // Hook Object with physics drift
+    hook = { x: 0, y: 50, targetX: 0, targetY: 50, radius: 14, angle: 0 };
+    fishes = [];
+    particles = [];
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function playSound(freq, type, duration, volume = 0.1) {
+        if (!audioCtx) return;
+        try {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.frequency.value = freq; 
+            osc.type = type;
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.connect(gain); 
+            gain.connect(audioCtx.destination);
+            osc.start(); 
+            osc.stop(audioCtx.currentTime + duration);
+        } catch(e) {}
+    }
+
+    // Efek partikel ledakan saat dapet ikan / meledak
+    function createExplosion(x, y, color, count = 10) {
+        for(let i = 0; i < count; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 6,
+                vy: (Math.random() - 0.5) * 6,
+                radius: Math.random() * 3 + 1,
+                color: color,
+                alpha: 1.0,
+                decay: Math.random() * 0.03 + 0.01
+            });
+        }
+    }
+
+    function createAlienFish() {
+        const types = [
+            { name: 'jellyfish', width: 30, height: 45, speed: 1.3, points: 20, color: '#ffaa00', isMine: false, isCore: false },
+            { name: 'squirt', width: 25, height: 25, speed: 3.4, points: 40, color: '#ff3300', isMine: false, isCore: false },
+            { name: 'shark', width: 60, height: 35, speed: 2.0, points: 30, color: '#ff7700', isMine: false, isCore: false },
+            { name: 'core', width: 20, height: 20, speed: 2.5, points: 10, color: '#00ff66', isMine: false, isCore: true },
+            { name: 'mine', width: 32, height: 32, speed: 1.4, points: 0, color: '#2e3d40', isMine: true, isCore: false }
+        ];
+        
+        let chosen = types[Math.floor(Math.random() * types.length)];
+        
+        // Penyesuaian probabilitas kemunculan item langka Core agar seimbang
+        if (chosen.isCore && Math.random() > 0.4) {
+            chosen = types[0]; // Rollback ke jellyfish biasa jika terlalu sering keluar
+        }
+
+        return {
+            x: canvas.width + 60,
+            y: Math.random() * (canvas.height - 240) + 160,
+            type: chosen.name,
+            width: chosen.width,
+            height: chosen.height,
+            speed: chosen.speed + (score * 0.002),
+            points: chosen.points,
+            color: chosen.color,
+            isMine: chosen.isMine,
+            isCore: chosen.isCore,
+            animFrame: Math.random() * 100 
+        };
+    }
+
+    function startGame() {
+        initAudio();
+        score = 0;
+        fishes = [];
+        particles = [];
+        overdriveTimer = 0;
+        
+        hook.x = canvas.width / 2;
+        hook.y = 50;
+        hook.targetX = canvas.width / 2;
+        hook.targetY = 120;
+
+        for (let i = 0; i < 6; i++) {
+            let fish = createAlienFish();
+            fish.x = Math.random() * canvas.width + 100;
+            fishes.push(fish);
+        }
+        
+        document.getElementById('menu').classList.add('hidden');
+        document.getElementById('gameover').classList.add('hidden');
+        gameRunning = true;
+        
+        playSound(350, 'sine', 0.5, 0.15);
+        animate();
+    }
+
+    function updateTrack(e) {
+        if (!gameRunning) return;
+        let rect = canvas.getBoundingClientRect();
+        let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        hook.targetX = clientX - rect.left;
+        hook.targetY = clientY - rect.top;
+
+        if (hook.targetY < 50) hook.targetY = 50;
+    }
+
+    canvas.addEventListener('pointerdown', e => { updateTrack(e); initAudio(); });
+    canvas.addEventListener('pointermove', e => { updateTrack(e); });
+
+    function animate() {
+        if (!gameRunning) return;
+        
+        // Efek transisi warna background saat overdrive aktif (Ungu gelap vs Teal Gelap)
+        if (overdriveTimer > 0) {
+            ctx.fillStyle = "#1c0d24";
+            overdriveTimer--;
+        } else {
+            ctx.fillStyle = "#0a1f24";
+        }
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 1. Pergerakan Kail Fleksibel (Elastic interpolation)
+        hook.x += (hook.targetX - hook.x) * 0.14;
+        hook.y += (hook.targetY - hook.y) * 0.14;
+        hook.angle = (hook.targetX - hook.x) * 0.02; // Kail miring natural saat ditarik
+
+        // 2. Spawn Logic Ikan Baru
+        if (fishes.length < 8 && Math.random() < 0.025) {
+            fishes.push(createAlienFish());
+        }
+
+        // 3. Update & Render Partikel Efek
+        for (let pIdx = particles.length - 1; pIdx >= 0; pIdx--) {
+            let p = particles[pIdx];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.alpha -= p.decay;
+            if (p.alpha <= 0) {
+                particles.splice(pIdx, 1);
+                continue;
+            }
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.alpha;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1.0; // Reset alpha canvas
+
+        // 4. Update & Render Ikan-Ikan Alien
+        for (let i = fishes.length - 1; i >= 0; i--) {
+            let f = fishes[i];
+            f.x -= f.speed;
+            f.animFrame += 0.07;
+
+            if (f.x + f.width < -80) {
+                fishes.splice(i, 1);
+                continue;
+            }
+
+            // Box Collision Box Check
+            let hX = hook.x, hY = hook.y;
+            if (hX > f.x && hX < f.x + f.width && hY > f.y && hY < f.y + f.height) {
+                
+                createExplosion(f.x + f.width/2, f.y + f.height/2, f.color, 12);
+
+                if (f.isMine) {
+                    // Kena Bom -> Game Over
+                    gameRunning = false;
+                    createExplosion(hook.x, hook.y, '#ff3300', 30);
+                    playSound(100, 'sawtooth', 0.6, 0.3);
+                    
+                    let isNewBest = false;
+                    if (score > highscore) {
+                        highscore = score;
+                        localStorage.setItem('mecha_fish_v2_hs', score);
+                        isNewBest = true;
+                    }
+                    document.getElementById('finalScore').innerText = "Final Bounty: " + score;
+                    document.getElementById('bestScore').innerText = isNewBest ? "NEW GALACTIC RECORD!" : "High Bounty: " + highscore;
+                    document.getElementById('gameover').classList.remove('hidden');
+                    return;
+                } 
+                else if (f.isCore) {
+                    // Kena Item Special -> Masuk Overdrive Mode
+                    overdriveTimer = 300; // Aktif selama 300 frame (~5 detik)
+                    score += (overdriveTimer > 0) ? f.points * 2 : f.points;
+                    playSound(587, 'sine', 0.1, 0.2);
+                    setTimeout(() => playSound(880, 'sine', 0.2, 0.2), 60);
+                    fishes.splice(i, 1);
+                    continue;
+                }
+                else {
+                    // Menangkap Ikan Biasa
+                    let finalPoints = (overdriveTimer > 0) ? f.points * 2 : f.points;
+                    score += finalPoints;
+                    
+                    playSound(650, 'sine', 0.07, 0.15);
+                    setTimeout(() => playSound(950, 'sine', 0.1, 0.15), 40);
+                    
+                    fishes.splice(i, 1);
+                    continue;
+                }
+            }
+
+            // --- PROSES MENGGAMBAR SETIAP KARAKTER SECARA NATURAL ---
+            ctx.save();
+            ctx.fillStyle = f.color;
+            ctx.shadowBlur = f.isMine ? 0 : 15;
+            ctx.shadowColor = f.color;
+
+            let wave = Math.sin(f.animFrame);
+
+            if (f.type === 'jellyfish') {
+                // Robo-Jellyfish dengan tentakel berombak dinamis
+                ctx.fillRect(f.x, f.y, f.width, f.height - 15);
+                // Tentakel 1
+                ctx.fillRect(f.x + 4, f.y + f.height - 15, 4, 15 + wave * 5);
+                // Tentakel 2 (Fase di balik agar berlawanan arah)
+                let wave2 = Math.cos(f.animFrame);
+                ctx.fillRect(f.x + f.width/2 - 2, f.y + f.height - 15, 4, 15 + wave2 * 5);
+                // Tentakel 3
+                ctx.fillRect(f.x + f.width - 8, f.y + f.height - 15, 4, 15 + wave * 5);
+            } 
+            else if (f.type === 'squirt') {
+                // Pesawat Cumi Alien dengan sayap kembar
+                ctx.beginPath();
+                ctx.moveTo(f.x, f.y + f.height/2);
+                ctx.lineTo(f.x + f.width, f.y - 4);
+                ctx.lineTo(f.x + f.width - 6, f.y + f.height/2);
+                ctx.lineTo(f.x + f.width, f.y + f.height + 4);
+                ctx.closePath();
+                ctx.fill();
+                // Efek api mesin pendorong di belakang (oranye neon berkobar)
+                if (Math.random() > 0.3) {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.fillRect(f.x + f.width, f.y + f.height/2 - 2, 8, 4);
+                }
+            } 
+            else if (f.type === 'shark') {
+                // Hiu Mecha Predator dengan ekor mengibas
+                ctx.beginPath();
+                ctx.ellipse(f.x + f.width/2, f.y + f.height/2, f.width/2, f.height/2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                // Sirip Atas Tajam
+                ctx.beginPath();
+                ctx.moveTo(f.x + f.width/2 - 8, f.y + 2);
+                ctx.lineTo(f.x + f.width/2 + 2, f.y - 14);
+                ctx.lineTo(f.x + f.width/2 + 12, f.y + 4);
+                ctx.fill();
+                // Ekor Sirip belakang bergerak naik turun
+                ctx.beginPath();
+                ctx.moveTo(f.x + f.width, f.y + f.height/2);
+                ctx.lineTo(f.x + f.width + 12, f.y + wave * 6);
+                ctx.lineTo(f.x + f.width + 12, f.y + f.height + wave * 6);
+                ctx.fill();
+                // Mata Merah Cyberpunk
+                ctx.fillStyle = '#ff0033';
+                ctx.beginPath();
+                ctx.arc(f.x + 12, f.y + f.height/2 - 2, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            } 
+            else if (f.type === 'core') {
+                // Energy Core: Kristal Diamond hijau berputar
+                ctx.translate(f.x + f.width/2, f.y + f.height/2);
+                ctx.rotate(f.animFrame * 1.5);
+                ctx.beginPath();
+                ctx.moveTo(0, -f.height/2);
+                ctx.lineTo(f.width/2, 0);
+                ctx.lineTo(0, f.height/2);
+                ctx.lineTo(-f.width/2, 0);
+                ctx.closePath();
+                ctx.fill();
+            }
+            else if (f.type === 'mine') {
+                // Ranjau plasma dengan duri diagonal
+                let centerX = f.x + f.width/2;
+                let centerY = f.y + f.height/2;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, f.width/2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Indikator lampu sensor berkedip cepat
+                if (Math.floor(Date.now() / 150) % 2 === 0) {
+                    ctx.fillStyle = '#ff0044';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            ctx.restore();
+        }
+
+        // 5. Menggambar Tali Pancing Efek Spring/Goyang
+        ctx.save();
+        if (overdriveTimer > 0) {
+            ctx.strokeStyle = "#00ff66"; // Warna tali berubah jadi laser hijau saat overdrive
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#00ff66";
+        } else {
+            ctx.strokeStyle = "rgba(0, 255, 204, 0.35)";
+            ctx.lineWidth = 2;
+        }
+        ctx.beginPath();
+        ctx.moveTo(hook.x, 0);
+        // Memberikan sedikit lengkungan sinusoidal pada tali saat kail bergerak ke kiri/kanan
+        let ropeMidX = hook.x - Math.sin(hook.angle) * 12;
+        ctx.quadraticCurveTo(ropeMidX, hook.y / 2, hook.x, hook.y - hook.radius);
+        ctx.stroke();
+        ctx.restore();
+
+        // 6. Menggambar Mata Kail Magnet Neon
+        ctx.save();
+        ctx.translate(hook.x, hook.y);
+        ctx.rotate(hook.angle);
+        
+        ctx.strokeStyle = (overdriveTimer > 0) ? "#00ff66" : "#00ffcc";
+        ctx.lineWidth = 4.5;
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = ctx.strokeStyle;
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, hook.radius, 0, Math.PI * 1.65); // Lengkungan bentuk jangkar mata pancing
+        ctx.stroke();
+        ctx.restore();
+
+        // 7. HUD Rendering (Skor Atas)
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 18px 'Segoe UI', system-ui, Arial";
+        ctx.fillText(`BOUNTY: ${score}`, 25, 40);
+        
+        ctx.fillStyle = "#ffaa00";
+        ctx.fillText(`RECORD: ${highscore}`, canvas.width - 155, 40);
+
+        // Teks Notifikasi jika sedang dalam Mode Overdrive (Skor X2)
+        if (overdriveTimer > 0) {
+            ctx.fillStyle = "#00ff66";
+            ctx.font = "italic bold 16px Arial";
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = "#00ff66";
+            ctx.fillText(`⚡ OVERDRIVE X2: ${Math.ceil(overdriveTimer/60)}s ⚡`, 25, 70);
+            ctx.shadowBlur = 0;
+        }
+
+        requestAnimationFrame(animate);
+    }
+
+    function resize() { 
+        canvas.width = window.innerWidth; 
+        canvas.height = window.innerHeight; 
+    }
+    window.onresize = resize; 
+    resize();
+</script>
+</body>
+</html>
