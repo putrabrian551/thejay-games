@@ -284,7 +284,7 @@
 
                 <canvas id="gameCanvas" width="1024" height="576"></canvas>
 
-                <div id="mobileControls" class="mobile-controls hidden">
+                <div id="mobileControls" class="mobile-controls">
                     <div class="control-group">
                         <div class="m-btn" id="btnLeft">←</div>
                         <div class="m-btn" id="btnRight">→</div>
@@ -312,7 +312,7 @@
         const deathReasonText = document.getElementById('deathReason');
         const overTitle = document.getElementById('overTitle');
 
-        // Dynamic Scaling for Devices
+        // Dynamic Scaling untuk penyesuaian layar HP / Desktop otomatis
         function resizeGame() {
             const baseWidth = 1024;
             const baseHeight = 576;
@@ -326,12 +326,16 @@
         window.addEventListener('load', resizeGame);
         resizeGame();
 
-        // Check device capabilities & Show UI
-        if ('ontouchstart' in window || navigator.maxTouchPoints > 0) {
+        // Cek kapabilitas device & tampilkan kontrol secara dinamis
+        let isMobile = false;
+        if ('ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth <= 800) {
+            isMobile = true;
             mobileControls.classList.remove('hidden');
+        } else {
+            mobileControls.classList.add('hidden'); // Sembunyikan jika murni desktop
         }
 
-        // Keyboard Controls Mapping
+        // Input data mapper
         const input = { left: false, right: false, jump: false, action: false };
         
         window.addEventListener('keydown', e => {
@@ -348,17 +352,23 @@
             if (e.key === 'e' || e.key === 'q') input.action = false;
         });
 
-        // FIXED: Mobile Button Controllers Logic Connected
+        // Setup Event Listener Tombol Mobile Touch
         const setupMobileButton = (id, property) => {
             const el = document.getElementById(id);
             if (!el) return;
             
+            // Ganti mousedown/mouseup dengan touch agar responsif di HP
             el.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 input[property] = true;
             }, { passive: false });
 
             el.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                input[property] = false;
+            }, { passive: false });
+            
+            el.addEventListener('touchcancel', (e) => {
                 e.preventDefault();
                 input[property] = false;
             }, { passive: false });
@@ -447,7 +457,7 @@
             isGrounded: false, facing: 'right', jumpCount: 0, maxJumps: 2
         };
 
-        // Static Level Boundaries and Environment
+        // Static Level Boundaries
         const platforms = [
             { x: 0, y: 520, width: 1024, height: 56 }, 
             { x: 0, y: 0, width: 20, height: 576 },   
@@ -500,6 +510,13 @@
             player.jumpCount = 0;
             spawnGuards();
             gameActive = true;
+            
+            // Mengatur visibilitas tombol mobile saat ronde game aktif
+            if (isMobile) {
+                mobileControls.classList.remove('hidden');
+            } else {
+                mobileControls.classList.add('hidden');
+            }
         }
 
         function checkCollision(r1, r2) {
@@ -509,6 +526,8 @@
 
         function triggerGameOver(reason, victory = false) {
             gameActive = false;
+            mobileControls.classList.add('hidden'); // Sembunyikan tombol saat Game Over
+            
             if (victory) {
                 playSound('victory');
                 overTitle.innerText = "🏆 SYSTEM HACKED 🏆";
@@ -803,23 +822,21 @@
             }
             ctx.restore();
 
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-            ctx.fillRect(30, 25, 250, 16);
-            ctx.fillStyle = brainCapacity > 75 ? '#ff0055' : '#7b2cbf';
-            ctx.fillRect(30, 25, 250 * (brainCapacity / 100), 16);
-            ctx.font = "bold 11px monospace"; ctx.fillStyle = '#b39ddb';
-            ctx.fillText(`NEURAL BRAIN OVERLOAD: ${Math.floor(brainCapacity)}%`, 30, 55);
-
-            ctx.font = "bold 22px monospace"; ctx.fillStyle = '#00f5d4';
-            ctx.fillText(`CORE INJECTED: ${score}/100`, 740, 42);
+            // Render HUD teks kapasitas otak & skor di layar atas
+            ctx.fillStyle = '#fff'; ctx.font = "14px 'Consolas', monospace";
+            ctx.fillText(`SCORE DATA: ${score}/100`, 35, 40);
+            
+            ctx.fillStyle = brainCapacity > 75 ? '#ff0055' : '#00f5d4';
+            ctx.fillText(`NEURAL LOAD: ${Math.floor(brainCapacity)}%`, 35, 65);
         }
 
-        function gameLoop() {
+        function loop() {
             update();
             draw();
-            requestAnimationFrame(gameLoop);
+            requestAnimationFrame(loop);
         }
 
+        // Penanganan klik layar menu awal
         startBtn.addEventListener('click', () => {
             startScreen.classList.add('hidden');
             initGame();
@@ -830,8 +847,8 @@
             initGame();
         });
 
-        // Initialize frame loop
-        requestAnimationFrame(gameLoop);
+        // Loop utama inisialisasi awal
+        loop();
     </script>
 </body>
 </html>
